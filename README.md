@@ -9,7 +9,8 @@ Vercel-first clone project for `aloha-yt.xyz`.
 - Next.js public routes, checkout flow, admin foundation, SEO scaffold implemented
 - Cloudinary asset sync complete: `1107` mirrored assets, `2` skipped external 404s recorded
 - guarded `lint` / guarded `build` / BrowserOS visual QA / BrowserOS protected-post QA completed
-- remaining step: GitHub push + Vercel project connect + production smoke test
+- Vercel project connected and production deployed: `https://aloha-clone.vercel.app`
+- production smoke test completed
 
 ## Key Docs
 

@@ -1,6 +1,6 @@
 # Progress
 
-현재 milestone: git push + vercel deploy
+현재 milestone: deployed
 
 - [x] 새 프로젝트 폴더 생성
 - [x] agents/문서/로컬 운영정보 정리
@@ -11,4 +11,4 @@
 - [x] SEO 표면 설계(sitemap, robots, metadata)
 - [x] Cloudinary 자산 이관 및 본문 치환
 - [x] GitHub 새 저장소 생성 및 origin 연결
-- [ ] Vercel 새 프로젝트 연결 및 배포 QA
+- [x] Vercel 새 프로젝트 연결 및 배포 QA

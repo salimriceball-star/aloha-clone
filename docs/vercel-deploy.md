@@ -3,7 +3,8 @@
 ## Target
 
 - GitHub repo: `https://github.com/salimriceball-star/aloha-clone`
-- Vercel project: 생성 예정
+- Vercel project: `https://vercel.com/salimriceball-5026s-projects/aloha-clone`
+- Public URL: `https://aloha-clone.vercel.app`
 
 ## Recommended Settings
 
@@ -35,8 +36,12 @@
 
 - GitHub repo 생성 완료
 - 로컬 git origin 연결 완료
+- Vercel project 생성 및 GitHub repo 연결 완료
+- Vercel runtime node `20.x` 반영 완료
+- Vercel env sync 완료
 - guarded `lint` / `build` 통과
 - BrowserOS visual QA 통과: clone issue `0`, source issue `4`(원본 외부 이미지 403)
 - BrowserOS protected-post QA 통과
-- Vercel project 미생성
-- production smoke test 미실행
+- latest deployment: `dpl_9G4eqxBp1Nb93XBqffq6ZPW1fuK8` `READY`
+- production smoke test 완료
+- `https://aloha-clone.vercel.app` 기준 canonical / og:url / robots / sitemap 검증 완료
