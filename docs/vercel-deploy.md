@@ -1,0 +1,42 @@
+# Vercel Deploy
+
+## Target
+
+- GitHub repo: `https://github.com/salimriceball-star/aloha-clone`
+- Vercel project: 생성 예정
+
+## Recommended Settings
+
+- framework: `Next.js`
+- install command: `npm install`
+- build command: `npm run build`
+- runtime node: `20.x`
+- root directory: `/`
+
+## Build Notes
+
+- `npm run build` 는 정적 빌드 중 `ALOHA_SKIP_ADMIN_DB=1` 로 동작한다.
+- 이유: 공개 페이지 SSG 중에는 Supabase admin DB를 건너뛰고, 런타임/관리자 액션에서만 DB를 사용한다.
+- 데이터 파일 경로는 `process.cwd()` 기준 상대 경로를 사용한다.
+
+## Runtime Secrets
+
+- 현재 프런트 배포는 `data/public-wp-export` 와 `data/assets/manifest.json` 을 읽는다.
+- Cloudinary/Supabase 자격증명은 수집/관리자 기능용이며, 실제 배포 연결 시 필요한 env만 별도로 입력한다.
+
+## Pre-Deploy Checks
+
+- `./scripts/run-guarded.sh npm run build`
+- `./scripts/run-guarded.sh npm run lint`
+- `./scripts/run-guarded.sh npm run qa:browseros`
+- `./scripts/run-guarded.sh npm run qa:protected`
+
+## Current Status
+
+- GitHub repo 생성 완료
+- 로컬 git origin 연결 완료
+- guarded `lint` / `build` 통과
+- BrowserOS visual QA 통과: clone issue `0`, source issue `4`(원본 외부 이미지 403)
+- BrowserOS protected-post QA 통과
+- Vercel project 미생성
+- production smoke test 미실행

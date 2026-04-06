@@ -1,0 +1,654 @@
+{
+  "capturedAt": "2026-04-06T17:32:55.479Z",
+  "baseUrl": "https://aloha-yt.xyz/",
+  "counts": {
+    "posts": 16,
+    "pages": 18,
+    "products": 100,
+    "categories": 1,
+    "productCategories": 7
+  },
+  "pages": [
+    {
+      "id": 1861,
+      "slug": "terms",
+      "link": "https://aloha-yt.xyz/terms/"
+    },
+    {
+      "id": 1585,
+      "slug": "200k",
+      "link": "https://aloha-yt.xyz/200k/"
+    },
+    {
+      "id": 904,
+      "slug": "scheduler",
+      "link": "https://aloha-yt.xyz/scheduler/"
+    },
+    {
+      "id": 855,
+      "slug": "deposit",
+      "link": "https://aloha-yt.xyz/deposit/"
+    },
+    {
+      "id": 847,
+      "slug": "simulation",
+      "link": "https://aloha-yt.xyz/simulation/"
+    },
+    {
+      "id": 309,
+      "slug": "appointment-cancellation-confirmation",
+      "link": "https://aloha-yt.xyz/appointment-cancellation-confirmation/"
+    },
+    {
+      "id": 308,
+      "slug": "cancel-payment",
+      "link": "https://aloha-yt.xyz/cancel-payment/"
+    },
+    {
+      "id": 307,
+      "slug": "cancel-appointment",
+      "link": "https://aloha-yt.xyz/cancel-appointment/"
+    },
+    {
+      "id": 306,
+      "slug": "thank-you",
+      "link": "https://aloha-yt.xyz/thank-you/"
+    },
+    {
+      "id": 305,
+      "slug": "my-bookings",
+      "link": "https://aloha-yt.xyz/my-bookings/"
+    },
+    {
+      "id": 304,
+      "slug": "book-appointment",
+      "link": "https://aloha-yt.xyz/book-appointment/"
+    },
+    {
+      "id": 240,
+      "slug": "res",
+      "link": "https://aloha-yt.xyz/res/"
+    },
+    {
+      "id": 13,
+      "slug": "refund_returns",
+      "link": "https://aloha-yt.xyz/refund_returns/"
+    },
+    {
+      "id": 12,
+      "slug": "my-account",
+      "link": "https://aloha-yt.xyz/my-account/"
+    },
+    {
+      "id": 11,
+      "slug": "checkout",
+      "link": "https://aloha-yt.xyz/checkout/"
+    },
+    {
+      "id": 10,
+      "slug": "cart",
+      "link": "https://aloha-yt.xyz/cart/"
+    },
+    {
+      "id": 9,
+      "slug": "shop",
+      "link": "https://aloha-yt.xyz/shop/"
+    },
+    {
+      "id": 3,
+      "slug": "privacy-policy",
+      "link": "https://aloha-yt.xyz/privacy-policy/"
+    }
+  ],
+  "products": [
+    {
+      "id": 2768,
+      "slug": "208",
+      "link": "https://aloha-yt.xyz/product/208/"
+    },
+    {
+      "id": 2760,
+      "slug": "207",
+      "link": "https://aloha-yt.xyz/product/207/"
+    },
+    {
+      "id": 2754,
+      "slug": "206",
+      "link": "https://aloha-yt.xyz/product/206/"
+    },
+    {
+      "id": 2744,
+      "slug": "205",
+      "link": "https://aloha-yt.xyz/product/205/"
+    },
+    {
+      "id": 2734,
+      "slug": "204",
+      "link": "https://aloha-yt.xyz/product/204/"
+    },
+    {
+      "id": 2725,
+      "slug": "203",
+      "link": "https://aloha-yt.xyz/product/203/"
+    },
+    {
+      "id": 2717,
+      "slug": "202",
+      "link": "https://aloha-yt.xyz/product/202/"
+    },
+    {
+      "id": 2709,
+      "slug": "201",
+      "link": "https://aloha-yt.xyz/product/201/"
+    },
+    {
+      "id": 2697,
+      "slug": "200",
+      "link": "https://aloha-yt.xyz/product/200/"
+    },
+    {
+      "id": 2690,
+      "slug": "199",
+      "link": "https://aloha-yt.xyz/product/199/"
+    },
+    {
+      "id": 2681,
+      "slug": "d6",
+      "link": "https://aloha-yt.xyz/product/d6/"
+    },
+    {
+      "id": 2674,
+      "slug": "198",
+      "link": "https://aloha-yt.xyz/product/198/"
+    },
+    {
+      "id": 2666,
+      "slug": "197",
+      "link": "https://aloha-yt.xyz/product/197/"
+    },
+    {
+      "id": 2655,
+      "slug": "196",
+      "link": "https://aloha-yt.xyz/product/196/"
+    },
+    {
+      "id": 2637,
+      "slug": "195",
+      "link": "https://aloha-yt.xyz/product/195/"
+    },
+    {
+      "id": 2630,
+      "slug": "194",
+      "link": "https://aloha-yt.xyz/product/194/"
+    },
+    {
+      "id": 2621,
+      "slug": "193",
+      "link": "https://aloha-yt.xyz/product/193/"
+    },
+    {
+      "id": 2604,
+      "slug": "192",
+      "link": "https://aloha-yt.xyz/product/192/"
+    },
+    {
+      "id": 2594,
+      "slug": "191",
+      "link": "https://aloha-yt.xyz/product/191/"
+    },
+    {
+      "id": 2588,
+      "slug": "190",
+      "link": "https://aloha-yt.xyz/product/190/"
+    },
+    {
+      "id": 2577,
+      "slug": "189",
+      "link": "https://aloha-yt.xyz/product/189/"
+    },
+    {
+      "id": 2565,
+      "slug": "187",
+      "link": "https://aloha-yt.xyz/product/187/"
+    },
+    {
+      "id": 2550,
+      "slug": "186",
+      "link": "https://aloha-yt.xyz/product/186/"
+    },
+    {
+      "id": 2540,
+      "slug": "185",
+      "link": "https://aloha-yt.xyz/product/185/"
+    },
+    {
+      "id": 2529,
+      "slug": "184",
+      "link": "https://aloha-yt.xyz/product/184/"
+    },
+    {
+      "id": 2523,
+      "slug": "183",
+      "link": "https://aloha-yt.xyz/product/183/"
+    },
+    {
+      "id": 2517,
+      "slug": "182",
+      "link": "https://aloha-yt.xyz/product/182/"
+    },
+    {
+      "id": 2505,
+      "slug": "181",
+      "link": "https://aloha-yt.xyz/product/181/"
+    },
+    {
+      "id": 2495,
+      "slug": "180",
+      "link": "https://aloha-yt.xyz/product/180/"
+    },
+    {
+      "id": 2481,
+      "slug": "178",
+      "link": "https://aloha-yt.xyz/product/178/"
+    },
+    {
+      "id": 2473,
+      "slug": "177",
+      "link": "https://aloha-yt.xyz/product/177/"
+    },
+    {
+      "id": 2462,
+      "slug": "176",
+      "link": "https://aloha-yt.xyz/product/176/"
+    },
+    {
+      "id": 2443,
+      "slug": "175",
+      "link": "https://aloha-yt.xyz/product/175/"
+    },
+    {
+      "id": 2435,
+      "slug": "174",
+      "link": "https://aloha-yt.xyz/product/174/"
+    },
+    {
+      "id": 2430,
+      "slug": "d4",
+      "link": "https://aloha-yt.xyz/product/d4/"
+    },
+    {
+      "id": 2420,
+      "slug": "173",
+      "link": "https://aloha-yt.xyz/product/173/"
+    },
+    {
+      "id": 2412,
+      "slug": "172",
+      "link": "https://aloha-yt.xyz/product/172/"
+    },
+    {
+      "id": 2405,
+      "slug": "171",
+      "link": "https://aloha-yt.xyz/product/171/"
+    },
+    {
+      "id": 2398,
+      "slug": "170",
+      "link": "https://aloha-yt.xyz/product/170/"
+    },
+    {
+      "id": 2392,
+      "slug": "169",
+      "link": "https://aloha-yt.xyz/product/169/"
+    },
+    {
+      "id": 2384,
+      "slug": "168",
+      "link": "https://aloha-yt.xyz/product/168/"
+    },
+    {
+      "id": 2354,
+      "slug": "167",
+      "link": "https://aloha-yt.xyz/product/167/"
+    },
+    {
+      "id": 2362,
+      "slug": "166",
+      "link": "https://aloha-yt.xyz/product/166/"
+    },
+    {
+      "id": 2349,
+      "slug": "166-2",
+      "link": "https://aloha-yt.xyz/product/166-2/"
+    },
+    {
+      "id": 2333,
+      "slug": "165",
+      "link": "https://aloha-yt.xyz/product/165/"
+    },
+    {
+      "id": 2321,
+      "slug": "164",
+      "link": "https://aloha-yt.xyz/product/164/"
+    },
+    {
+      "id": 2303,
+      "slug": "162",
+      "link": "https://aloha-yt.xyz/product/162/"
+    },
+    {
+      "id": 2271,
+      "slug": "161",
+      "link": "https://aloha-yt.xyz/product/161/"
+    },
+    {
+      "id": 2263,
+      "slug": "160",
+      "link": "https://aloha-yt.xyz/product/160/"
+    },
+    {
+      "id": 2256,
+      "slug": "159",
+      "link": "https://aloha-yt.xyz/product/159/"
+    },
+    {
+      "id": 2242,
+      "slug": "158",
+      "link": "https://aloha-yt.xyz/product/158/"
+    },
+    {
+      "id": 2221,
+      "slug": "157",
+      "link": "https://aloha-yt.xyz/product/157/"
+    },
+    {
+      "id": 2216,
+      "slug": "d3",
+      "link": "https://aloha-yt.xyz/product/d3/"
+    },
+    {
+      "id": 2202,
+      "slug": "156",
+      "link": "https://aloha-yt.xyz/product/156/"
+    },
+    {
+      "id": 2196,
+      "slug": "155",
+      "link": "https://aloha-yt.xyz/product/155/"
+    },
+    {
+      "id": 2180,
+      "slug": "d2",
+      "link": "https://aloha-yt.xyz/product/d2/"
+    },
+    {
+      "id": 2032,
+      "slug": "154",
+      "link": "https://aloha-yt.xyz/product/154/"
+    },
+    {
+      "id": 2151,
+      "slug": "153",
+      "link": "https://aloha-yt.xyz/product/153/"
+    },
+    {
+      "id": 2117,
+      "slug": "151",
+      "link": "https://aloha-yt.xyz/product/151/"
+    },
+    {
+      "id": 2107,
+      "slug": "150",
+      "link": "https://aloha-yt.xyz/product/150/"
+    },
+    {
+      "id": 2089,
+      "slug": "d1",
+      "link": "https://aloha-yt.xyz/product/d1/"
+    },
+    {
+      "id": 2073,
+      "slug": "149",
+      "link": "https://aloha-yt.xyz/product/149/"
+    },
+    {
+      "id": 2057,
+      "slug": "148",
+      "link": "https://aloha-yt.xyz/product/148/"
+    },
+    {
+      "id": 2024,
+      "slug": "146",
+      "link": "https://aloha-yt.xyz/product/146/"
+    },
+    {
+      "id": 2014,
+      "slug": "145",
+      "link": "https://aloha-yt.xyz/product/145/"
+    },
+    {
+      "id": 2008,
+      "slug": "144",
+      "link": "https://aloha-yt.xyz/product/144/"
+    },
+    {
+      "id": 1995,
+      "slug": "143",
+      "link": "https://aloha-yt.xyz/product/143/"
+    },
+    {
+      "id": 1986,
+      "slug": "142",
+      "link": "https://aloha-yt.xyz/product/142/"
+    },
+    {
+      "id": 1980,
+      "slug": "141",
+      "link": "https://aloha-yt.xyz/product/141/"
+    },
+    {
+      "id": 1952,
+      "slug": "140",
+      "link": "https://aloha-yt.xyz/product/140/"
+    },
+    {
+      "id": 1945,
+      "slug": "139",
+      "link": "https://aloha-yt.xyz/product/139/"
+    },
+    {
+      "id": 1923,
+      "slug": "138",
+      "link": "https://aloha-yt.xyz/product/138/"
+    },
+    {
+      "id": 1917,
+      "slug": "137",
+      "link": "https://aloha-yt.xyz/product/137/"
+    },
+    {
+      "id": 1909,
+      "slug": "136",
+      "link": "https://aloha-yt.xyz/product/136/"
+    },
+    {
+      "id": 1872,
+      "slug": "135",
+      "link": "https://aloha-yt.xyz/product/135/"
+    },
+    {
+      "id": 1819,
+      "slug": "132",
+      "link": "https://aloha-yt.xyz/product/132/"
+    },
+    {
+      "id": 1813,
+      "slug": "131",
+      "link": "https://aloha-yt.xyz/product/131/"
+    },
+    {
+      "id": 1802,
+      "slug": "130",
+      "link": "https://aloha-yt.xyz/product/130/"
+    },
+    {
+      "id": 1792,
+      "slug": "129",
+      "link": "https://aloha-yt.xyz/product/129/"
+    },
+    {
+      "id": 1760,
+      "slug": "128",
+      "link": "https://aloha-yt.xyz/product/128/"
+    },
+    {
+      "id": 1735,
+      "slug": "127",
+      "link": "https://aloha-yt.xyz/product/127/"
+    },
+    {
+      "id": 1729,
+      "slug": "124",
+      "link": "https://aloha-yt.xyz/product/124/"
+    },
+    {
+      "id": 1712,
+      "slug": "126",
+      "link": "https://aloha-yt.xyz/product/126/"
+    },
+    {
+      "id": 1704,
+      "slug": "134",
+      "link": "https://aloha-yt.xyz/product/134/"
+    },
+    {
+      "id": 1693,
+      "slug": "123",
+      "link": "https://aloha-yt.xyz/product/123/"
+    },
+    {
+      "id": 1672,
+      "slug": "122",
+      "link": "https://aloha-yt.xyz/product/122/"
+    },
+    {
+      "id": 1642,
+      "slug": "121",
+      "link": "https://aloha-yt.xyz/product/121/"
+    },
+    {
+      "id": 1575,
+      "slug": "119",
+      "link": "https://aloha-yt.xyz/product/119/"
+    },
+    {
+      "id": 1566,
+      "slug": "118",
+      "link": "https://aloha-yt.xyz/product/118/"
+    },
+    {
+      "id": 1558,
+      "slug": "117",
+      "link": "https://aloha-yt.xyz/product/117/"
+    },
+    {
+      "id": 1553,
+      "slug": "116",
+      "link": "https://aloha-yt.xyz/product/116/"
+    },
+    {
+      "id": 1545,
+      "slug": "115",
+      "link": "https://aloha-yt.xyz/product/115/"
+    },
+    {
+      "id": 1519,
+      "slug": "114",
+      "link": "https://aloha-yt.xyz/product/114/"
+    },
+    {
+      "id": 1512,
+      "slug": "113",
+      "link": "https://aloha-yt.xyz/product/113/"
+    },
+    {
+      "id": 1492,
+      "slug": "111",
+      "link": "https://aloha-yt.xyz/product/111/"
+    },
+    {
+      "id": 1480,
+      "slug": "112",
+      "link": "https://aloha-yt.xyz/product/112/"
+    },
+    {
+      "id": 1465,
+      "slug": "110",
+      "link": "https://aloha-yt.xyz/product/110/"
+    },
+    {
+      "id": 1459,
+      "slug": "109",
+      "link": "https://aloha-yt.xyz/product/109/"
+    },
+    {
+      "id": 1454,
+      "slug": "108",
+      "link": "https://aloha-yt.xyz/product/108/"
+    },
+    {
+      "id": 1444,
+      "slug": "107",
+      "link": "https://aloha-yt.xyz/product/107/"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "자주묻는질문",
+      "slug": "qa"
+    }
+  ],
+  "productCategories": [
+    {
+      "id": 22,
+      "name": "구매가능",
+      "slug": "sale"
+    },
+    {
+      "id": 20,
+      "name": "구매대행",
+      "slug": "%ea%b5%ac%eb%a7%a4%eb%8c%80%ed%96%89"
+    },
+    {
+      "id": 15,
+      "name": "미분류",
+      "slug": "%eb%af%b8%eb%b6%84%eb%a5%98"
+    },
+    {
+      "id": 23,
+      "name": "서비스",
+      "slug": "service"
+    },
+    {
+      "id": 19,
+      "name": "예약",
+      "slug": "%ec%98%88%ec%95%bd"
+    },
+    {
+      "id": 21,
+      "name": "예약가능",
+      "slug": "%ec%98%88%ec%95%bd%ea%b0%80%eb%8a%a5"
+    },
+    {
+      "id": 17,
+      "name": "채널",
+      "slug": "%ec%b1%84%eb%84%90"
+    }
+  ],
+  "sitemap": {
+    "?xml": "",
+    "?xml-stylesheet": "",
+    "urlset": ""
+  }
+}

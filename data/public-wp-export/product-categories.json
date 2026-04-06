@@ -1,0 +1,55 @@
+{
+  "total": 7,
+  "totalPages": 1,
+  "records": [
+    {
+      "id": 22,
+      "count": 18,
+      "name": "구매가능",
+      "slug": "sale",
+      "parent": 0
+    },
+    {
+      "id": 20,
+      "count": 0,
+      "name": "구매대행",
+      "slug": "%ea%b5%ac%eb%a7%a4%eb%8c%80%ed%96%89",
+      "parent": 0
+    },
+    {
+      "id": 15,
+      "count": 0,
+      "name": "미분류",
+      "slug": "%eb%af%b8%eb%b6%84%eb%a5%98",
+      "parent": 0
+    },
+    {
+      "id": 23,
+      "count": 2,
+      "name": "서비스",
+      "slug": "service",
+      "parent": 0
+    },
+    {
+      "id": 19,
+      "count": 0,
+      "name": "예약",
+      "slug": "%ec%98%88%ec%95%bd",
+      "parent": 0
+    },
+    {
+      "id": 21,
+      "count": 16,
+      "name": "예약가능",
+      "slug": "%ec%98%88%ec%95%bd%ea%b0%80%eb%8a%a5",
+      "parent": 0
+    },
+    {
+      "id": 17,
+      "count": 36,
+      "name": "채널",
+      "slug": "%ec%b1%84%eb%84%90",
+      "parent": 0
+    }
+  ]
+}

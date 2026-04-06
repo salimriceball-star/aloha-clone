@@ -1,0 +1,22 @@
+{
+  "capturedAt": "2026-04-06T17:32:58.453Z",
+  "baseUrl": "https://aloha-yt.xyz/",
+  "counts": {
+    "posts": 16,
+    "pages": 18,
+    "products": 178,
+    "categories": 1,
+    "productCategories": 7,
+    "comments": 0
+  },
+  "files": [
+    "site-meta.json",
+    "sitemap.json",
+    "posts.json",
+    "pages.json",
+    "products.json",
+    "categories.json",
+    "product-categories.json",
+    "comments.json"
+  ]
+}

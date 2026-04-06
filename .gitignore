@@ -1,0 +1,17 @@
+.next/
+.local/
+.browseros-profile/
+logs/
+node_modules/
+out/
+dist/
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+*.local
+*.local.*
+data/assets/raw/
+artifacts/
