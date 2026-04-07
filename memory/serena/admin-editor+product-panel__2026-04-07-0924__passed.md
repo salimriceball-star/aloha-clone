@@ -1,0 +1,7 @@
+작업 일시: 2026-04-07 오전 09:24 UTC
+작업 배경 및 목표: admin 편집기를 visual/html 전환 + Cloudinary 다중 업로드로 개선하고, `/loginpage/products` 과다 렌더링/렉 문제 수정.
+수정된 파일 목록 (절대경로): /home/vboxuser/aloha_clone/components/admin-html-editor.tsx, /home/vboxuser/aloha_clone/app/api/admin/uploads/route.ts, /home/vboxuser/aloha_clone/lib/admin-uploads.ts, /home/vboxuser/aloha_clone/app/admin/actions.ts, /home/vboxuser/aloha_clone/app/loginpage/(dashboard)/products/page.tsx, /home/vboxuser/aloha_clone/app/admin/(dashboard)/products/page.tsx, /home/vboxuser/aloha_clone/app/loginpage/(dashboard)/posts/page.tsx, /home/vboxuser/aloha_clone/app/loginpage/(dashboard)/assets/page.tsx, /home/vboxuser/aloha_clone/app/globals.css, /home/vboxuser/aloha_clone/docs/admin-editor.md, /home/vboxuser/aloha_clone/agents.md, /home/vboxuser/aloha_clone/progress.md
+주요 변경 사항 상세 설명: 공용 rich editor 도입, raw HTML 모드/툴바/다중 이미지 업로드/드롭 삽입 지원. 제품 편집은 목록 전체 에디터 렌더링 대신 선택한 1건만 열도록 변경. 저장 후 같은 상품으로 복귀하도록 redirect 보강.
+검증 결과 (로그, 테스트 결과): guarded lint 통과. guarded build 통과(`MAX_TREE_RSS_MB=2200`). local BrowserOS QA: `/loginpage/products` upload 200, 상태문구 정상, local selectorCount=178, editorCount=3. production BrowserOS QA: `https://aloha-clone.vercel.app/loginpage/products` 기준 attempt=6, selectorCount=178, editorCount=3.
+참조 문서/memory: /home/vboxuser/aloha_clone/docs/admin-editor.md, /home/vboxuser/aloha_clone/artifacts/browseros-admin-editor/2026-04-07T09-21-32-006Z/summary-report.json
+다음 단계 또는 known issues: 로컬 DB 연결이 불가하면 clone_assets 기록은 생략되지만 업로드/삽입은 계속 동작.
