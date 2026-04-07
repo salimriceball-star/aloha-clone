@@ -11,4 +11,4 @@
 - [x] 푸터 저작권 문구 정리
 - [x] guarded lint/build 실행
 - [x] BrowserOS에서 관리자 목록/개별 편집/상점 표시 확인
-- [ ] git push 및 memory 마감
+- [x] git push 및 memory 마감
