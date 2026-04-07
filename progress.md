@@ -12,4 +12,4 @@
 - [x] 원본 푸터 구조/카피 반영
 - [x] 홈 글목록 페이지네이션 및 보호글 재수집 반영
 - [x] guarded lint/build 및 BrowserOS targeted QA 실행
-- [ ] 배포 반영, progress/memory 마감
+- [x] 배포 반영, progress/memory 마감

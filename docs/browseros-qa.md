@@ -14,8 +14,10 @@
 
 ## Current Status
 
-- 최신 verified run:
+- 최신 local verified run:
 - `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-37-35-362Z/report.json`
+- 최신 public verified run:
+- `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-41-55-951Z/report.json`
 - 결과: `checksPassed=true`
 - 확인 완료:
 - 홈 `글 목록` 헤더, 사이드탭 제거, `/page/2` 페이지네이션

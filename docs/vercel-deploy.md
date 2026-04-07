@@ -39,8 +39,9 @@
 - Vercel runtime node `20.x` 반영 완료
 - Vercel env sync 완료
 - guarded `lint` / `build` 통과
-- BrowserOS visual QA 통과: clone issue `0`, source issue `4`(원본 외부 이미지 403)
-- BrowserOS protected-post QA 통과
+- BrowserOS targeted QA 통과:
+- local `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-37-35-362Z/report.json`
+- public `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-41-55-951Z/report.json`
 - latest deployment: `dpl_9G4eqxBp1Nb93XBqffq6ZPW1fuK8` `READY`
 - production smoke test 완료
 - `https://aloha-clone.vercel.app` 기준 canonical / og:url / robots / sitemap 검증 완료
