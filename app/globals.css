@@ -798,6 +798,41 @@ body {
   gap: 14px;
 }
 
+.admin-product-browser,
+.admin-product-editor-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-product-browser-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: end;
+}
+
+.admin-product-selector {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-product-link {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-product-link.is-active {
+  border-color: rgba(63, 107, 90, 0.4);
+  background: rgba(63, 107, 90, 0.08);
+}
+
 .admin-checkbox {
   display: flex;
   align-items: center;

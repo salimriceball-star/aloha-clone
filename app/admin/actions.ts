@@ -34,6 +34,18 @@ function formatDatePath(value: string) {
   return `/${year}/${month}`;
 }
 
+function buildRedirectPath(returnTo: string, fallback: string, params: Record<string, string>) {
+  const candidate = returnTo.trim();
+  const safeBase = candidate.startsWith("/") ? candidate : fallback;
+  const url = new URL(safeBase, "http://localhost");
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  return `${url.pathname}${url.search}`;
+}
+
 export async function loginAdminAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   if (!(await verifyAdminPassword(password))) {
@@ -94,6 +106,7 @@ export async function saveProductAction(formData: FormData) {
 
   const slug = String(formData.get("slug") ?? "").trim();
   const sourceProductId = Number(formData.get("sourceProductId") ?? 0) || null;
+  const returnTo = String(formData.get("returnTo") ?? "");
 
   if (!slug) {
     redirect("/loginpage/products?error=1");
@@ -118,11 +131,12 @@ export async function saveProductAction(formData: FormData) {
   revalidatePath(`/product/${slug}`);
   revalidatePath("/product/[slug]", "page");
   revalidatePath("/sitemap.xml");
-  redirect("/loginpage/products?saved=1");
+  redirect(buildRedirectPath(returnTo, "/loginpage/products", { saved: "1" }));
 }
 
 export async function saveProductCommonIntroAction(formData: FormData) {
   await requireAdminSession();
+  const returnTo = String(formData.get("returnTo") ?? "");
 
   await saveAdminSetting({
     key: productCommonIntroSettingKey,
@@ -134,7 +148,7 @@ export async function saveProductCommonIntroAction(formData: FormData) {
   revalidatePath("/shop/page/[page]", "page");
   revalidatePath("/product/[slug]", "page");
   revalidatePath("/sitemap.xml");
-  redirect("/loginpage/products?introSaved=1");
+  redirect(buildRedirectPath(returnTo, "/loginpage/products", { introSaved: "1" }));
 }
 
 export async function uploadAssetAction(formData: FormData) {
