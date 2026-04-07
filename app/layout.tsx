@@ -55,7 +55,6 @@ export default async function RootLayout({
               <nav className="site-nav">
                 <Link href="/">자주 묻는 질문</Link>
                 <Link href="/shop">상점</Link>
-                <Link href="/my-account">내 계정</Link>
                 <CartNavLink />
               </nav>
             </div>

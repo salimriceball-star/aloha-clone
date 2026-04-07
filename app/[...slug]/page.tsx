@@ -58,16 +58,12 @@ function AccountPage() {
   return (
     <section className="panel account-panel">
       <h2>내 계정</h2>
-      <p className="account-form-copy">온라인 회원가입과 웹 로그인 기능은 현재 운영하지 않습니다.</p>
-      <p className="account-form-copy">상품 확인과 주문은 상점 및 결제 페이지에서 바로 진행하실 수 있습니다.</p>
-      <div className="account-form-actions">
-        <Link className="action-button" href="/shop">
-          상점 보기
-        </Link>
-        <Link className="action-button secondary-button" href="/checkout">
-          주문 진행
-        </Link>
-      </div>
+      <p className="account-form-copy">주문이나 예약을 원하시면 고객센터(백링크)로 연락주세요.</p>
+      <p className="account-form-copy">
+        <a href="https://open.kakao.com/me/npn1212/chat" target="_blank" rel="noreferrer">
+          고객센터(백링크)
+        </a>
+      </p>
     </section>
   );
 }
