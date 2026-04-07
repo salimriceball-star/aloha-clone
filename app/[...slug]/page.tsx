@@ -58,10 +58,10 @@ function AccountPage() {
   return (
     <section className="panel account-panel">
       <h2>내 계정</h2>
-      <p className="account-form-copy">주문이나 예약을 원하시면 고객센터(백링크)로 연락주세요.</p>
+      <p className="account-form-copy">주문이나 예약을 원하시면 고객센터(아래)로 연락주세요.</p>
       <p className="account-form-copy">
         <a href="https://open.kakao.com/me/npn1212/chat" target="_blank" rel="noreferrer">
-          고객센터(백링크)
+          고객센터 바로가기
         </a>
       </p>
     </section>
