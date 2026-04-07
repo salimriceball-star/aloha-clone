@@ -24,6 +24,7 @@
     "sync:assets:guarded": "./scripts/run-guarded.sh npm run sync:assets",
     "qa:browseros": "tsx scripts/browseros-visual-qa.ts",
     "qa:browseros:guarded": "./scripts/run-guarded.sh npm run qa:browseros",
+    "qa:admin-products": "tsx scripts/browseros-admin-products-qa.ts",
     "qa:protected": "tsx scripts/browseros-protected-posts-qa.ts",
     "qa:protected:guarded": "./scripts/run-guarded.sh npm run qa:protected"
   },

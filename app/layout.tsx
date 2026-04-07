@@ -63,7 +63,6 @@ export default async function RootLayout({
           <div className="site-main">{children}</div>
           <footer className="site-footer">
             <div className="site-footer-inner">
-              <p className="footer-copy">Copyright © 2026. {siteMeta.name} all rights reserved.</p>
               <div className="footer-legal-block">
                 <p>
                   상호명: 마케티드 | 대표: 안누리 | 사업자등록번호: 283-74-00474

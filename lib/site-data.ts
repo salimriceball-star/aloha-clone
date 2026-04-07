@@ -4,6 +4,7 @@ import { cache } from "react";
 
 import { getAdminSetting, listAdminPosts, listAdminProductOverrides, type AdminPostRecord } from "@/lib/admin-store";
 import { resolveAssetUrl, rewriteHtmlAssetUrls } from "@/lib/asset-map";
+import { getDisplayPriceValue } from "@/lib/product-pricing";
 
 const projectRoot = process.cwd();
 const exportDir = path.join(projectRoot, "data", "public-wp-export");
@@ -297,16 +298,46 @@ function pathToSegments(value: string) {
   return pathFromLink(value).split("/").filter(Boolean);
 }
 
-function deriveStockState(title: string) {
-  if (title.includes("판매완료")) {
-    return "soldout" as const;
-  }
-
+function deriveStockState(title: string, availability?: string) {
   if (title.includes("예약중") || title.includes("예약")) {
     return "reserved" as const;
   }
 
+  if (title.includes("판매완료") || title.includes("품절") || availability?.includes("OutOfStock")) {
+    return "soldout" as const;
+  }
+
   return "available" as const;
+}
+
+function extractRegularPriceValue(...values: Array<string | null | undefined>) {
+  const normalized = decodeHtmlEntities(values.filter(Boolean).join(" "))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/,/g, "");
+
+  const patterns = [
+    /원(?:래)? 가격(?:은)?\s*([0-9]+(?:\.[0-9]+)?)\s*만원/iu,
+    /정가(?:는)?\s*([0-9]+(?:\.[0-9]+)?)\s*만원/iu,
+    /원(?:래)? 가격(?:은)?\s*([0-9]+)\s*원/iu,
+    /정가(?:는)?\s*([0-9]+)\s*원/iu
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (!match) {
+      continue;
+    }
+
+    const numeric = Number(match[1]);
+    if (!Number.isFinite(numeric)) {
+      continue;
+    }
+
+    return pattern.source.includes("만원") ? Math.round(numeric * 10_000) : Math.round(numeric);
+  }
+
+  return null;
 }
 
 function findProductIntroBoundary(value: string) {
@@ -329,7 +360,7 @@ function splitProductContentSections(value: string) {
   };
 }
 
-function formatPrice(price?: string | number, currency?: string) {
+function formatPrice(price?: string | number | null, currency?: string) {
   if (price === undefined || price === null || price === "") {
     return null;
   }
@@ -621,9 +652,18 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
     const rawReviewCount = schema?.aggregateRating?.reviewCount ?? reviews.length;
     const reviewCount = Number(rawReviewCount) || reviews.length;
     const decodedTitle = decodeHtmlEntities(product.title.rendered);
-    const stockState = deriveStockState(decodedTitle);
+    const stockState = deriveStockState(decodedTitle, primaryOffer?.availability);
     const fullContentHtml = await rewriteHtmlAssetUrls(product.content.rendered);
     const { bodyHtml } = splitProductContentSections(fullContentHtml);
+    const regularPriceValue = extractRegularPriceValue(schema?.description, product.excerpt.rendered, product.content.rendered);
+    const resolvedRegularPriceValue =
+      regularPriceValue !== null && Number.isFinite(numericPrice) && regularPriceValue > numericPrice ? regularPriceValue : null;
+    const salePriceValue = resolvedRegularPriceValue !== null && Number.isFinite(numericPrice) ? numericPrice : null;
+    const currentPriceValue = getDisplayPriceValue({
+      priceValue: Number.isFinite(numericPrice) ? numericPrice : null,
+      regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
+      salePriceValue
+    });
 
     return {
       id: product.id,
@@ -634,10 +674,10 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
       excerpt: stripHtml(product.excerpt.rendered),
       excerptHtml: await rewriteHtmlAssetUrls(product.excerpt.rendered),
       contentHtml: bodyHtml,
-      priceText: formatPrice(primaryOffer?.price, primaryOffer?.priceCurrency),
-      priceValue: Number.isFinite(numericPrice) ? numericPrice : null,
-      regularPriceValue: Number.isFinite(numericPrice) ? numericPrice : null,
-      salePriceValue: null,
+      priceText: formatPrice(currentPriceValue, primaryOffer?.priceCurrency),
+      priceValue: currentPriceValue,
+      regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
+      salePriceValue,
       imageUrl: await resolveAssetUrl(
         Array.isArray(schema?.image) ? schema.image[0] ?? extractFirstImageUrl(product.content.rendered) : schema?.image ?? extractFirstImageUrl(product.content.rendered)
       ),
@@ -668,7 +708,11 @@ export async function getProducts(options?: {
     const override = overrideBySlug.get(product.slug);
     const regularPriceValue = override?.regularPriceValue ?? product.regularPriceValue;
     const salePriceValue = override?.salePriceValue ?? product.salePriceValue;
-    const displayValue = salePriceValue ?? regularPriceValue ?? product.priceValue;
+    const displayValue = getDisplayPriceValue({
+      priceValue: product.priceValue,
+      regularPriceValue,
+      salePriceValue
+    });
     const mergedContentHtml = override?.contentHtml ?? product.contentHtml;
     const { bodyHtml } = splitProductContentSections(mergedContentHtml);
 

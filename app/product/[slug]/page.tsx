@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ProductPriceContent } from "@/components/product-price-content";
 import { ProductStatusBadges } from "@/components/product-status-badges";
 import { ProductPurchaseActions } from "@/components/storefront-client";
 import { RichHtml } from "@/components/rich-html";
@@ -87,14 +88,12 @@ export default async function ProductDetailPage({
             <span>{product.ratingValue ? `평점 ${product.ratingValue}` : "평점 미확인"}</span>
           </div>
           <p className="product-price-hero">
-            {product.salePriceValue !== null && product.regularPriceValue && product.salePriceValue < product.regularPriceValue ? (
-              <>
-                <span className="catalog-price-strike">₩{new Intl.NumberFormat("ko-KR").format(product.regularPriceValue)}</span>{" "}
-                {product.priceText ?? "가격 미확인"}
-              </>
-            ) : (
-              product.priceText ?? "가격 미확인"
-            )}
+            <ProductPriceContent
+              priceText={product.priceText}
+              priceValue={product.priceValue}
+              regularPriceValue={product.regularPriceValue}
+              salePriceValue={product.salePriceValue}
+            />
           </p>
           <RichHtml className="rich-text product-lede-html" html={product.excerptHtml} />
           <div className="signal-list">

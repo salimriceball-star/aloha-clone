@@ -1,3 +1,5 @@
+import { hasSalePrice } from "@/lib/product-pricing";
+
 type ProductStatusBadgesProps = {
   stockState: "available" | "reserved" | "soldout";
   regularPriceValue: number | null;
@@ -9,11 +11,7 @@ export function ProductStatusBadges({
   regularPriceValue,
   salePriceValue
 }: ProductStatusBadgesProps) {
-  const hasSale =
-    salePriceValue !== null &&
-    regularPriceValue !== null &&
-    salePriceValue > 0 &&
-    salePriceValue < regularPriceValue;
+  const hasSale = hasSalePrice(regularPriceValue, salePriceValue);
 
   return (
     <div className="status-badges" aria-label="상품 상태">

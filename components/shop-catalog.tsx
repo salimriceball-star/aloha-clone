@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { ProductPriceContent } from "@/components/product-price-content";
 import { ProductPurchaseActions } from "@/components/storefront-client";
 import { ProductStatusBadges } from "@/components/product-status-badges";
 import type { ProductEntry } from "@/lib/site-data";
@@ -41,14 +42,12 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
               </h2>
             </div>
             <p className="catalog-price">
-              {product.salePriceValue !== null && product.regularPriceValue && product.salePriceValue < product.regularPriceValue ? (
-                <>
-                  <span className="catalog-price-strike">₩{new Intl.NumberFormat("ko-KR").format(product.regularPriceValue)}</span>{" "}
-                  {product.priceText ?? "가격 확인 필요"}
-                </>
-              ) : (
-                product.priceText ?? "가격 확인 필요"
-              )}
+              <ProductPriceContent
+                priceText={product.priceText}
+                priceValue={product.priceValue}
+                regularPriceValue={product.regularPriceValue}
+                salePriceValue={product.salePriceValue}
+              />
             </p>
             <ProductPurchaseActions
               compact

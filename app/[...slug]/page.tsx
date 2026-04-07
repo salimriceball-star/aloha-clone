@@ -56,49 +56,18 @@ export async function generateMetadata({
 
 function AccountPage() {
   return (
-    <section className="account-auth-grid">
-      <section className="panel account-panel">
-        <h2>로그인</h2>
-        <form className="account-form">
-          <label className="account-form-row">
-            <span>사용자명 또는 이메일 주소 *</span>
-            <input type="text" autoComplete="username" />
-          </label>
-          <label className="account-form-row">
-            <span>비밀번호 *</span>
-            <input type="password" autoComplete="current-password" />
-          </label>
-          <div className="account-form-actions">
-            <label className="account-form-check">
-              <input type="checkbox" />
-              <span>기억하기</span>
-            </label>
-            <button type="button" className="action-button">
-              로그인
-            </button>
-          </div>
-          <Link className="text-link account-inline-link" href="/my-account/lost-password/">
-            비밀번호를 잊으셨나요?
-          </Link>
-        </form>
-      </section>
-
-      <section className="panel account-panel">
-        <h2>회원가입하기</h2>
-        <form className="account-form">
-          <label className="account-form-row">
-            <span>이메일 주소 *</span>
-            <input type="email" autoComplete="email" />
-          </label>
-          <p className="account-form-copy">새 비밀번호를 설정하는 링크가 회원님의 이메일 주소로 전송됩니다.</p>
-          <p className="account-form-copy">
-            개인 데이터는 사이트 이용 지원, 계정 관리, 안내 문서에 명시된 목적을 위해 사용됩니다.
-          </p>
-          <button type="button" className="action-button">
-            회원가입하기
-          </button>
-        </form>
-      </section>
+    <section className="panel account-panel">
+      <h2>내 계정</h2>
+      <p className="account-form-copy">온라인 회원가입과 웹 로그인 기능은 현재 운영하지 않습니다.</p>
+      <p className="account-form-copy">상품 확인과 주문은 상점 및 결제 페이지에서 바로 진행하실 수 있습니다.</p>
+      <div className="account-form-actions">
+        <Link className="action-button" href="/shop">
+          상점 보기
+        </Link>
+        <Link className="action-button secondary-button" href="/checkout">
+          주문 진행
+        </Link>
+      </div>
     </section>
   );
 }
@@ -107,16 +76,10 @@ function LostPasswordPage() {
   return (
     <section className="panel account-panel">
       <h2>비밀번호 재설정</h2>
-      <form className="account-form">
-        <label className="account-form-row">
-          <span>사용자명 또는 이메일 주소 *</span>
-          <input type="text" autoComplete="username" />
-        </label>
-        <p className="account-form-copy">가입 시 사용한 이메일 주소로 비밀번호 재설정 링크가 전송됩니다.</p>
-        <button type="button" className="action-button">
-          재설정 링크 받기
-        </button>
-      </form>
+      <p className="account-form-copy">웹 로그인 기능을 운영하지 않아 비밀번호 재설정도 제공하지 않습니다.</p>
+      <Link className="action-button" href="/my-account">
+        내 계정으로 돌아가기
+      </Link>
     </section>
   );
 }

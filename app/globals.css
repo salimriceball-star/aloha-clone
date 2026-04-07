@@ -502,7 +502,8 @@ body {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   padding: 14px 16px;
   border: 1px solid var(--line);
@@ -772,6 +773,12 @@ body {
   text-decoration: none;
 }
 
+.admin-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .admin-form-grid {
   display: grid;
   gap: 14px;
@@ -812,9 +819,70 @@ body {
   align-items: end;
 }
 
+.admin-bulk-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
 .admin-product-selector {
   display: grid;
   gap: 10px;
+}
+
+.admin-product-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admin-product-checkbox {
+  align-self: start;
+  padding-top: 4px;
+}
+
+.admin-product-row-body {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-product-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-product-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-inline-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-inline-flags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(63, 107, 90, 0.08);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+}
+
+.admin-product-price {
+  font-size: 1rem;
 }
 
 .admin-product-link {
@@ -963,6 +1031,15 @@ body {
 
   .commerce-card {
     grid-template-columns: 1fr;
+  }
+
+  .admin-bulk-toolbar,
+  .admin-product-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-product-checkbox {
+    padding-top: 0;
   }
 }
 
@@ -1316,6 +1393,10 @@ h6,
   font-weight: 700;
 }
 
+.catalog-price-current {
+  color: var(--accent-strong);
+}
+
 .catalog-price-strike {
   color: var(--muted);
   text-decoration: line-through;
@@ -1531,12 +1612,14 @@ h6,
 
 .field input,
 .field textarea,
+.field select,
 .order-meta-card {
   border-radius: 4px;
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   padding: 13px 14px;
 }
 

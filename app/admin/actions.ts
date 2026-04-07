@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { clearAdminSession, createAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/admin-auth";
 import { isUploadableFile, uploadAdminFiles } from "@/lib/admin-uploads";
 import { saveAdminPost, saveAdminProductOverride, saveAdminSetting } from "@/lib/admin-store";
+import { getProducts } from "@/lib/site-data";
 
 const productCommonIntroSettingKey = "product_common_intro_html";
 
@@ -148,7 +149,62 @@ export async function saveProductCommonIntroAction(formData: FormData) {
   revalidatePath("/shop/page/[page]", "page");
   revalidatePath("/product/[slug]", "page");
   revalidatePath("/sitemap.xml");
-  redirect(buildRedirectPath(returnTo, "/loginpage/products", { introSaved: "1" }));
+  redirect(buildRedirectPath(returnTo, "/loginpage/products/common", { introSaved: "1" }));
+}
+
+export async function bulkUpdateProductAction(formData: FormData) {
+  await requireAdminSession();
+
+  const returnTo = String(formData.get("returnTo") ?? "");
+  const selectedSlugs = formData
+    .getAll("selectedSlug")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const visibility = String(formData.get("visibility") ?? "").trim() as "" | "public" | "hidden" | "private";
+  const stockState = String(formData.get("stockState") ?? "").trim() as "" | "available" | "reserved" | "soldout";
+
+  if (selectedSlugs.length === 0) {
+    redirect(buildRedirectPath(returnTo, "/loginpage/products", { bulkError: "selection" }));
+  }
+
+  if (!visibility && !stockState) {
+    redirect(buildRedirectPath(returnTo, "/loginpage/products", { bulkError: "action" }));
+  }
+
+  const products = await getProducts({ includeHidden: true, includePrivate: true });
+  const productsBySlug = new Map(products.map((product) => [product.slug, product]));
+  let updatedCount = 0;
+
+  for (const slug of selectedSlugs) {
+    const product = productsBySlug.get(slug);
+    if (!product) {
+      continue;
+    }
+
+    await saveAdminProductOverride({
+      sourceProductId: product.id,
+      slug: product.slug,
+      title: product.title,
+      excerptHtml: product.excerptHtml,
+      contentHtml: product.contentHtml,
+      imageUrl: product.imageUrl,
+      regularPriceValue: product.regularPriceValue,
+      salePriceValue: product.salePriceValue,
+      visibility: visibility || product.visibility,
+      stockState: stockState || product.stockState
+    });
+    updatedCount += 1;
+  }
+
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/shop/page/[page]", "page");
+  revalidatePath("/product/[slug]", "page");
+  revalidatePath("/loginpage/products");
+  revalidatePath("/loginpage/products/page/[page]", "page");
+  revalidatePath("/sitemap.xml");
+
+  redirect(buildRedirectPath(returnTo, "/loginpage/products", { bulkSaved: String(updatedCount) }));
 }
 
 export async function uploadAssetAction(formData: FormData) {
