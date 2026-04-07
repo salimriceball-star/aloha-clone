@@ -4,14 +4,9 @@ import { notFound } from "next/navigation";
 import { CommentThread } from "@/components/comment-thread";
 import { RichHtml } from "@/components/rich-html";
 import { htmlHasLeadingImage } from "@/lib/html-utils";
-import { getPostBySlug, getPostComments, getPosts } from "@/lib/site-data";
+import { getPostBySlug, getPostComments } from "@/lib/site-data";
 
 export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const posts = await getPosts();
-  return posts.map((post) => ({ slug: post.slug }));
-}
 
 export default async function ColumnDetailPage({
   params

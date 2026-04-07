@@ -14,13 +14,20 @@
 
 ## Current Status
 
-- 최신 verified run: 아직 없음
+- 최신 verified run:
+- `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-37-35-362Z/report.json`
+- 결과: `checksPassed=true`
+- 확인 완료:
+- 홈 `글 목록` 헤더, 사이드탭 제거, `/page/2` 페이지네이션
+- `/shop` 16개 이하 카드, `/shop/page/2` 링크 존재, direct-only 상품 `207` 목록 숨김
+- `/product/207` direct 접근 가능
+- `/loginpage` 비밀번호 필드 노출, `/admin` 안내 문구 미노출
+- `/352` 잠금/해제 모두 정상
 - prerequisite:
 - `npm run build:guarded`
 - `npm run lint:guarded`
 - local preview 기동
-- `npm run qa:browseros:guarded`
-- `npm run qa:protected:guarded`
+- `./scripts/run-guarded.sh npx tsx scripts/browseros-targeted-qa.ts`
 
 ## Notes
 

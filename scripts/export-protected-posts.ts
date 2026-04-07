@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { chromium } from "playwright-core";
+import { chromium, type Page } from "playwright-core";
 
 import { sourceAdminBaseUrl } from "@/lib/project-config";
 
@@ -94,6 +94,41 @@ async function ensureBrowserOsReady() {
   return version.webSocketDebuggerUrl ?? browserOsCdpUrl;
 }
 
+async function captureRenderedProtectedContent(page: Page, link: string, password: string) {
+  await page.goto(link, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(800);
+
+  const passwordInput = page.locator('form.post-password-form input[type="password"], form.post-password-form input[name="post_password"]').first();
+  if ((await passwordInput.count()) > 0) {
+    await passwordInput.fill(password);
+    const submitButton = page.locator('form.post-password-form button[type="submit"], form.post-password-form input[type="submit"]').first();
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded"),
+      submitButton.click()
+    ]);
+    await page.waitForTimeout(1200);
+  }
+
+  return page.evaluate(() => {
+    const contentHtml =
+      document.querySelector(".entry-content")?.innerHTML.trim() ??
+      document.querySelector(".post-content")?.innerHTML.trim() ??
+      document.querySelector("article")?.innerHTML.trim() ??
+      "";
+    const title = (
+      document.querySelector("main h1")?.textContent ??
+      document.querySelector("article h1")?.textContent ??
+      document.querySelector("h1")?.textContent ??
+      ""
+    ).replace(/\s+/g, " ").trim();
+
+    return {
+      title,
+      contentHtml
+    };
+  });
+}
+
 async function collectAdminRows() {
   const cdpEndpoint = await ensureBrowserOsReady();
   const browser = await chromium.connectOverCDP(cdpEndpoint);
@@ -105,42 +140,55 @@ async function collectAdminRows() {
 
   const page = await context.newPage();
   try {
-    await page.goto(`${sourceAdminBaseUrl}/edit.php`, { waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(1500);
+    const rows: AdminRow[] = [];
+    const seenIds = new Set<number>();
 
-    const rows = (await page.evaluate(() => {
-      return Array.from(document.querySelectorAll<HTMLTableRowElement>("#the-list tr"))
-        .map((row) => {
-          const id = Number(row.id.replace("post-", ""));
-          const title =
-            row.querySelector(".row-title")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
-          const status = Array.from(row.classList).find((className) => className.startsWith("status-")) ?? "";
-          const categoryNames = Array.from(row.querySelectorAll(".column-categories a")).map((link) =>
-            link.textContent?.replace(/\s+/g, " ").trim() ?? ""
-          );
-          const rowText = row.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    for (let paged = 1; paged <= 30; paged += 1) {
+      await page.goto(`${sourceAdminBaseUrl}/edit.php?paged=${paged}`, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(1500);
 
-          let visibility: Visibility | null = null;
-          if (rowText.includes("비밀번호로 보호됨")) {
-            visibility = "password";
-          } else if (rowText.includes("— 비공개")) {
-            visibility = "private";
-          } else if (status === "status-draft") {
-            visibility = "draft";
-          }
+      const pageRows = (await page.evaluate(() => {
+        return Array.from(document.querySelectorAll<HTMLTableRowElement>("#the-list tr"))
+          .map((row) => {
+            const id = Number(row.id.replace("post-", ""));
+            const title =
+              row.querySelector(".row-title")?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+            const status = Array.from(row.classList).find((className) => className.startsWith("status-")) ?? "";
+            const categoryNames = Array.from(row.querySelectorAll(".column-categories a")).map((link) =>
+              link.textContent?.replace(/\s+/g, " ").trim() ?? ""
+            );
+            const rowText = row.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
-          return visibility
-            ? {
-                id,
-                title,
-                status: status.replace(/^status-/, ""),
-                visibility,
-                categoryNames
-              }
-            : null;
-        })
-        .filter((row): row is AdminRow => Boolean(row));
-    })) as AdminRow[];
+            let visibility: Visibility | null = null;
+            if (rowText.includes("비밀번호로 보호됨")) {
+              visibility = "password";
+            } else if (rowText.includes("— 비공개")) {
+              visibility = "private";
+            } else if (status === "status-draft") {
+              visibility = "draft";
+            }
+
+            return visibility
+              ? {
+                  id,
+                  title,
+                  status: status.replace(/^status-/, ""),
+                  visibility,
+                  categoryNames
+                }
+              : null;
+          })
+          .filter((row): row is AdminRow => Boolean(row));
+      })) as AdminRow[];
+
+      const freshRows = pageRows.filter((row) => !seenIds.has(row.id));
+      freshRows.forEach((row) => seenIds.add(row.id));
+      rows.push(...freshRows);
+
+      if (pageRows.length === 0) {
+        break;
+      }
+    }
 
     const exportedPosts: ExportedProtectedPost[] = [];
 
@@ -205,6 +253,11 @@ async function collectAdminRows() {
         throw new Error(`Failed to read editor state for post ${row.id}`);
       }
 
+      const renderedPost =
+        row.visibility === "password"
+          ? await captureRenderedProtectedContent(page, editorPost.link, editorPost.password)
+          : null;
+
       exportedPosts.push({
         id: editorPost.id,
         date: editorPost.date,
@@ -214,8 +267,8 @@ async function collectAdminRows() {
         status: editorPost.status,
         visibility: row.visibility,
         password: editorPost.password,
-        title: editorPost.title,
-        contentHtml: editorPost.content,
+        title: renderedPost?.title || editorPost.title,
+        contentHtml: renderedPost?.contentHtml || editorPost.content,
         excerptHtml: editorPost.excerpt,
         categoryIds: editorPost.categories,
         categoryNames: row.categoryNames,

@@ -5,9 +5,11 @@ import { redirect } from "next/navigation";
 import { v2 as cloudinary } from "cloudinary";
 
 import { clearAdminSession, createAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/admin-auth";
-import { saveAdminAsset, saveAdminPost, saveAdminProductOverride } from "@/lib/admin-store";
+import { saveAdminAsset, saveAdminPost, saveAdminProductOverride, saveAdminSetting } from "@/lib/admin-store";
 import { cloudinaryFolder } from "@/lib/project-config";
 import { getServerEnv } from "@/lib/server-env";
+
+const productCommonIntroSettingKey = "product_common_intro_html";
 
 function slugify(value: string) {
   return value
@@ -52,16 +54,16 @@ function formatDatePath(value: string) {
 export async function loginAdminAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   if (!(await verifyAdminPassword(password))) {
-    redirect("/admin/login?error=1");
+    redirect("/loginpage?error=1");
   }
 
   await createAdminSession();
-  redirect("/admin");
+  redirect("/loginpage");
 }
 
 export async function logoutAdminAction() {
   await clearAdminSession();
-  redirect("/admin/login");
+  redirect("/loginpage");
 }
 
 export async function savePostAction(formData: FormData) {
@@ -78,7 +80,7 @@ export async function savePostAction(formData: FormData) {
   const customPath = normalizePathInput(String(formData.get("path") ?? ""));
 
   if (!title || !contentHtml.trim()) {
-    redirect("/admin/posts?error=1");
+    redirect("/loginpage/posts?error=1");
   }
 
   const slug = slugify(rawSlug || title);
@@ -97,10 +99,11 @@ export async function savePostAction(formData: FormData) {
   });
 
   revalidatePath("/");
+  revalidatePath("/page/[page]", "page");
   revalidatePath("/column");
   revalidatePath(path);
   revalidatePath("/sitemap.xml");
-  redirect("/admin/posts?saved=1");
+  redirect("/loginpage/posts?saved=1");
 }
 
 export async function saveProductAction(formData: FormData) {
@@ -110,7 +113,7 @@ export async function saveProductAction(formData: FormData) {
   const sourceProductId = Number(formData.get("sourceProductId") ?? 0) || null;
 
   if (!slug) {
-    redirect("/admin/products?error=1");
+    redirect("/loginpage/products?error=1");
   }
 
   await saveAdminProductOverride({
@@ -128,9 +131,27 @@ export async function saveProductAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/shop");
+  revalidatePath("/shop/page/[page]", "page");
   revalidatePath(`/product/${slug}`);
+  revalidatePath("/product/[slug]", "page");
   revalidatePath("/sitemap.xml");
-  redirect("/admin/products?saved=1");
+  redirect("/loginpage/products?saved=1");
+}
+
+export async function saveProductCommonIntroAction(formData: FormData) {
+  await requireAdminSession();
+
+  await saveAdminSetting({
+    key: productCommonIntroSettingKey,
+    value: String(formData.get("value") ?? "")
+  });
+
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/shop/page/[page]", "page");
+  revalidatePath("/product/[slug]", "page");
+  revalidatePath("/sitemap.xml");
+  redirect("/loginpage/products?introSaved=1");
 }
 
 export async function uploadAssetAction(formData: FormData) {
@@ -138,7 +159,7 @@ export async function uploadAssetAction(formData: FormData) {
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    redirect("/admin/assets?error=1");
+    redirect("/loginpage/assets?error=1");
   }
 
   const cloudName = getServerEnv("CLOUDINARY_CLOUD_NAME");
@@ -173,5 +194,5 @@ export async function uploadAssetAction(formData: FormData) {
     originalFilename: file.name || null
   });
 
-  redirect("/admin/assets?uploaded=1");
+  redirect("/loginpage/assets?uploaded=1");
 }

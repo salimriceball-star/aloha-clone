@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
 
-import { listAdminPosts, listAdminProductOverrides, type AdminPostRecord } from "@/lib/admin-store";
+import { getAdminSetting, listAdminPosts, listAdminProductOverrides, type AdminPostRecord } from "@/lib/admin-store";
 import { resolveAssetUrl, rewriteHtmlAssetUrls } from "@/lib/asset-map";
 
 const projectRoot = process.cwd();
@@ -114,6 +114,16 @@ type ProtectedPostPayload = {
   adminOnlyPosts: RawProtectedPost[];
 };
 
+type ShopVisibilityPayload = {
+  capturedAt: string;
+  visibleSlugs: string[];
+  pages: Array<{
+    page: number;
+    count: number;
+    slugs: string[];
+  }>;
+};
+
 export type CommentNode = {
   id: number;
   authorName: string;
@@ -216,6 +226,8 @@ export type SiteMeta = {
   site_icon_url?: string;
 };
 
+const productCommonIntroSettingKey = "product_common_intro_html";
+
 const readJson = cache(async <T>(filename: string): Promise<T> => {
   const raw = await readFile(`${exportDir}/${filename}`, "utf8");
   return JSON.parse(raw) as T;
@@ -240,6 +252,10 @@ function decodeHtmlEntities(value: string) {
 
 function stripHtml(value: string) {
   return decodeHtmlEntities(value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+function normalizeProtectedTitle(value: string) {
+  return decodeHtmlEntities(value).replace(/^보호된 글:\s*/u, "").trim();
 }
 
 function extractFirstImageUrl(value: string) {
@@ -292,6 +308,26 @@ function deriveStockState(title: string) {
   return "available" as const;
 }
 
+function findProductIntroBoundary(value: string) {
+  const match = value.match(/<h[1-6][^>]*>\s*채널 소개\s*<\/h[1-6]>/i);
+  return match?.index ?? -1;
+}
+
+function splitProductContentSections(value: string) {
+  const boundary = findProductIntroBoundary(value);
+  if (boundary < 0) {
+    return {
+      commonIntroHtml: "",
+      bodyHtml: value.trim()
+    };
+  }
+
+  return {
+    commonIntroHtml: value.slice(0, boundary).trim(),
+    bodyHtml: value.slice(boundary).trim()
+  };
+}
+
 function formatPrice(price?: string | number, currency?: string) {
   if (price === undefined || price === null || price === "") {
     return null;
@@ -327,6 +363,14 @@ export async function getSiteManifest() {
 export async function getSiteMeta() {
   return readJson<SiteMeta>("site-meta.json");
 }
+
+const getShopVisibility = cache(async (): Promise<ShopVisibilityPayload | null> => {
+  try {
+    return await readJson<ShopVisibilityPayload>("shop-visibility.json");
+  } catch {
+    return null;
+  }
+});
 
 const getSourcePosts = cache(async (): Promise<PostEntry[]> => {
   const [postsPayload, categoriesPayload, commentsPayload] = await Promise.all([
@@ -398,7 +442,7 @@ const getSourceProtectedPosts = cache(async (): Promise<PostEntry[]> => {
         legacyPath: normalizePath(post.directPath || `/${post.id}`),
         pathSegments: pathToSegments(post.directPath || `/${post.id}`),
         link: post.link,
-        title: decodeHtmlEntities(post.title),
+        title: normalizeProtectedTitle(post.title),
         excerpt: stripHtml(post.excerptHtml || post.contentHtml),
         excerptHtml,
         contentHtml,
@@ -527,6 +571,8 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
   ]);
 
   const detailsBySlug = new Map(productDetails.map((detail) => [normalizeSlug(detail.slug), detail]));
+  const visibilityPayload = await getShopVisibility();
+  const visibleSlugs = visibilityPayload ? new Set(visibilityPayload.visibleSlugs.map((slug) => normalizeSlug(slug))) : null;
 
   return Promise.all(sortByDateDesc(productsPayload.records).map(async (product) => {
     const normalizedSlug = normalizeSlug(product.slug);
@@ -554,6 +600,8 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
     const reviewCount = Number(rawReviewCount) || reviews.length;
     const decodedTitle = decodeHtmlEntities(product.title.rendered);
     const stockState = deriveStockState(decodedTitle);
+    const fullContentHtml = await rewriteHtmlAssetUrls(product.content.rendered);
+    const { bodyHtml } = splitProductContentSections(fullContentHtml);
 
     return {
       id: product.id,
@@ -563,7 +611,7 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
       title: decodedTitle,
       excerpt: stripHtml(product.excerpt.rendered),
       excerptHtml: await rewriteHtmlAssetUrls(product.excerpt.rendered),
-      contentHtml: await rewriteHtmlAssetUrls(product.content.rendered),
+      contentHtml: bodyHtml,
       priceText: formatPrice(primaryOffer?.price, primaryOffer?.priceCurrency),
       priceValue: Number.isFinite(numericPrice) ? numericPrice : null,
       regularPriceValue: Number.isFinite(numericPrice) ? numericPrice : null,
@@ -575,7 +623,7 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
       ratingValue: schema?.aggregateRating?.ratingValue ?? null,
       reviewCount,
       reviews,
-      visibility: "public" as const,
+      visibility: visibleSlugs && !visibleSlugs.has(normalizedSlug) ? ("hidden" as const) : ("public" as const),
       stockState,
       publicSignals: detail?.publicSignals ?? {
         hasRefundText: false,
@@ -599,12 +647,14 @@ export async function getProducts(options?: {
     const regularPriceValue = override?.regularPriceValue ?? product.regularPriceValue;
     const salePriceValue = override?.salePriceValue ?? product.salePriceValue;
     const displayValue = salePriceValue ?? regularPriceValue ?? product.priceValue;
+    const mergedContentHtml = override?.contentHtml ?? product.contentHtml;
+    const { bodyHtml } = splitProductContentSections(mergedContentHtml);
 
     return {
       ...product,
       title: override?.title ?? product.title,
       excerptHtml: override?.excerptHtml ?? product.excerptHtml,
-      contentHtml: override?.contentHtml ?? product.contentHtml,
+      contentHtml: bodyHtml,
       excerpt: stripHtml(override?.excerptHtml ?? product.excerptHtml),
       imageUrl: override?.imageUrl ?? product.imageUrl,
       priceValue: displayValue,
@@ -636,6 +686,31 @@ export async function getProductBySlug(slug: string, options?: {
   const products = await getProducts(options);
   const normalizedSlug = normalizeSlug(slug);
   return products.find((product) => product.slug === normalizedSlug) ?? null;
+}
+
+const getDefaultProductCommonIntroHtml = cache(async () => {
+  const productsPayload = await readJson<WpPaged<RawPost>>("products.json");
+  const source = productsPayload.records.find((product) => normalizeSlug(product.slug) === "207") ?? productsPayload.records[0];
+  if (!source) {
+    return "";
+  }
+
+  const rewritten = await rewriteHtmlAssetUrls(source.content.rendered);
+  return splitProductContentSections(rewritten).commonIntroHtml;
+});
+
+export async function getProductCommonIntroHtml() {
+  const [defaultValue, override] = await Promise.all([
+    getDefaultProductCommonIntroHtml(),
+    getAdminSetting(productCommonIntroSettingKey)
+  ]);
+
+  return override?.value?.trim() ? override.value : defaultValue;
+}
+
+export async function getShopPageCount(pageSize = 16) {
+  const products = await getProducts();
+  return Math.max(1, Math.ceil(products.length / pageSize));
 }
 
 export const getPages = cache(async (): Promise<PageEntry[]> => {

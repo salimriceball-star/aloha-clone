@@ -27,10 +27,9 @@
 
 ## Pre-Deploy Checks
 
-- `./scripts/run-guarded.sh npm run build`
+- `MAX_TREE_RSS_MB=1500 MIN_AVAILABLE_MB=700 ./scripts/run-guarded.sh npm run build`
 - `./scripts/run-guarded.sh npm run lint`
-- `./scripts/run-guarded.sh npm run qa:browseros`
-- `./scripts/run-guarded.sh npm run qa:protected`
+- local preview 기동 후 `./scripts/run-guarded.sh npx tsx scripts/browseros-targeted-qa.ts`
 
 ## Current Status
 

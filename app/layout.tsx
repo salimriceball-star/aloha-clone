@@ -62,7 +62,25 @@ export default async function RootLayout({
           </header>
           <div className="site-main">{children}</div>
           <footer className="site-footer">
-            <div className="site-footer-inner">Copyright © 2026. {siteMeta.name} all rights reserved.</div>
+            <div className="site-footer-inner">
+              <p className="footer-copy">Copyright © 2026. {siteMeta.name} all rights reserved.</p>
+              <div className="footer-legal-block">
+                <p>
+                  상호명: 마케티드 | 대표: 안누리 | 사업자등록번호: 283-74-00474
+                  <br />
+                  주소: 전북특별자치도 전주시 완산구 문학대5길 6 202
+                  <br />
+                  <a href="https://open.kakao.com/me/npn1212/chat" target="_blank" rel="noreferrer">
+                    고객센터 (카카오톡 문의)
+                  </a>{" "}
+                  | 통신판매업신고번호: 제2025-전주완산-0574호
+                </p>
+                <p className="footer-policy-links">
+                  <Link href="/terms">이용약관</Link> | <Link href="/privacy">개인정보처리방침</Link>
+                </p>
+                <p className="footer-copy footer-copy-muted">Copyright © 2025 마케티드. All Rights Reserved.</p>
+              </div>
+            </div>
           </footer>
         </div>
       </body>

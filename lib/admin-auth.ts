@@ -115,6 +115,6 @@ export async function isAdminAuthenticated() {
 
 export async function requireAdminSession() {
   if (!(await isAdminAuthenticated())) {
-    redirect("/admin/login");
+    redirect("/loginpage");
   }
 }

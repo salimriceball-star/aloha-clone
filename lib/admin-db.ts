@@ -81,6 +81,12 @@ async function ensureSchema(pool: Pool) {
       original_filename text,
       created_at timestamptz not null default now()
     );
+
+    create table if not exists clone_settings (
+      key text primary key,
+      value text not null default '',
+      updated_at timestamptz not null default now()
+    );
   `);
 
   globalThis.__alohaPgSchemaReady__ = true;

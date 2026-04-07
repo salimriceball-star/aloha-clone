@@ -7,23 +7,9 @@ import { CommentThread } from "@/components/comment-thread";
 import { ProtectedPostGate } from "@/components/protected-post-gate";
 import { RichHtml } from "@/components/rich-html";
 import { htmlHasLeadingImage } from "@/lib/html-utils";
-import { getPageByPath, getPages, getPostByPath, getPostComments, getPosts, getProtectedPosts } from "@/lib/site-data";
-
-const reservedPageSlugs = new Set(["cart", "checkout", "shop"]);
+import { getPageByPath, getPostByPath, getPostComments } from "@/lib/site-data";
 
 export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const [posts, protectedPosts, pages] = await Promise.all([getPosts(), getProtectedPosts(), getPages()]);
-
-  return [
-    ...posts.map((post) => ({ slug: post.pathSegments })),
-    ...protectedPosts.map((post) => ({ slug: post.pathSegments })),
-    ...pages
-      .filter((page) => !reservedPageSlugs.has(page.slug))
-      .map((page) => ({ slug: page.pathSegments }))
-  ];
-}
 
 export async function generateMetadata({
   params

@@ -303,7 +303,6 @@ export function CartPageClient({ catalog }: { catalog: PurchaseProduct[] }) {
             <div className="commerce-card-body">
               <div className="flag-row">
                 <span>{item.product.priceText ?? "가격 확인 필요"}</span>
-                <span>상품평 {item.product.reviewCount}</span>
               </div>
               <h2>
                 <Link href={`/product/${encodeURIComponent(item.product.slug)}`}>{item.product.title}</Link>

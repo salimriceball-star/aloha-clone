@@ -35,6 +35,12 @@ export type AdminAssetRecord = {
   createdAt: string;
 };
 
+export type AdminSettingRecord = {
+  key: string;
+  value: string;
+  updatedAt: string | null;
+};
+
 type AdminPostInput = Omit<AdminPostRecord, "id">;
 type AdminProductInput = Omit<AdminProductOverride, "updatedAt">;
 
@@ -255,4 +261,52 @@ export async function saveAdminAsset(input: {
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at)
     } as AdminAssetRecord;
   }, null as AdminAssetRecord | null);
+}
+
+export async function getAdminSetting(key: string) {
+  return withAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        select key, value, updated_at
+        from clone_settings
+        where key = $1
+        limit 1
+      `,
+      [key]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null as AdminSettingRecord | null;
+    }
+
+    return {
+      key: row.key,
+      value: row.value,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+    } as AdminSettingRecord;
+  }, null as AdminSettingRecord | null);
+}
+
+export async function saveAdminSetting(input: { key: string; value: string }) {
+  return withAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        insert into clone_settings (key, value, updated_at)
+        values ($1, $2, now())
+        on conflict (key) do update
+        set value = excluded.value,
+            updated_at = now()
+        returning key, value, updated_at
+      `,
+      [input.key, input.value]
+    );
+
+    const row = result.rows[0];
+    return {
+      key: row.key,
+      value: row.value,
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+    } as AdminSettingRecord;
+  }, null as AdminSettingRecord | null);
 }

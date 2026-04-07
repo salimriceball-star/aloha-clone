@@ -2,21 +2,12 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { ProductStatusBadges } from "@/components/product-status-badges";
 import { ProductPurchaseActions } from "@/components/storefront-client";
-import { ReviewList } from "@/components/review-list";
 import { RichHtml } from "@/components/rich-html";
-import { getProductBySlug, getProducts } from "@/lib/site-data";
+import { getProductBySlug, getProductCommonIntroHtml } from "@/lib/site-data";
 
 export const revalidate = 60;
-
-function clampText(value: string, maxLength: number) {
-  return value.length > maxLength ? `${value.slice(0, maxLength).trim()}…` : value;
-}
-
-export async function generateStaticParams() {
-  const products = await getProducts();
-  return products.map((product) => ({ slug: product.slug }));
-}
 
 export async function generateMetadata({
   params
@@ -51,7 +42,10 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug, { includeHidden: true });
+  const [product, productCommonIntroHtml] = await Promise.all([
+    getProductBySlug(slug, { includeHidden: true }),
+    getProductCommonIntroHtml()
+  ]);
 
   if (!product) {
     notFound();
@@ -82,36 +76,39 @@ export default async function ProductDetailPage({
 
         <div className="product-buybox">
           <p className="eyebrow">Product</p>
+          <ProductStatusBadges
+            stockState={product.stockState}
+            regularPriceValue={product.regularPriceValue}
+            salePriceValue={product.salePriceValue}
+          />
           <h1>{product.title}</h1>
           <div className="star-row">
             <span aria-hidden="true">★★★★★</span>
             <span>{product.ratingValue ? `평점 ${product.ratingValue}` : "평점 미확인"}</span>
-            <span>상품평 {product.reviewCount}</span>
           </div>
-          <p className="product-price-hero">{product.priceText ?? "가격 미확인"}</p>
-          <p className="product-lede">{clampText(product.excerpt, 220)}</p>
+          <p className="product-price-hero">
+            {product.salePriceValue !== null && product.regularPriceValue && product.salePriceValue < product.regularPriceValue ? (
+              <>
+                <span className="catalog-price-strike">₩{new Intl.NumberFormat("ko-KR").format(product.regularPriceValue)}</span>{" "}
+                {product.priceText ?? "가격 미확인"}
+              </>
+            ) : (
+              product.priceText ?? "가격 미확인"
+            )}
+          </p>
+          <RichHtml className="rich-text product-lede-html" html={product.excerptHtml} />
           <div className="signal-list">
             {product.publicSignals.hasRefundText ? <span>환불정책</span> : null}
             {product.publicSignals.hasGmailDeliveryText ? <span>지메일 전달</span> : null}
-            {product.publicSignals.hasPdfOptionText ? <span>PDF 옵션</span> : null}
           </div>
           <ProductPurchaseActions product={purchaseProduct} />
         </div>
       </article>
 
       <article className="article-shell article-shell-polished">
+        {productCommonIntroHtml ? <RichHtml className="rich-text article-body" html={productCommonIntroHtml} /> : null}
         <RichHtml className="rich-text article-body" html={product.contentHtml} />
       </article>
-
-      <section className="discussion-section">
-        <div className="section-head section-head-tight">
-          <div>
-            <p className="eyebrow">Reviews</p>
-            <h2>상품평</h2>
-          </div>
-        </div>
-        <ReviewList reviews={product.reviews} />
-      </section>
     </main>
   );
 }
