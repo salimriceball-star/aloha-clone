@@ -149,6 +149,7 @@ export type PostEntry = {
   date: string;
   slug: string;
   legacyPath: string;
+  aliasPaths: string[];
   pathSegments: string[];
   link: string;
   title: string;
@@ -398,6 +399,7 @@ const getSourcePosts = cache(async (): Promise<PostEntry[]> => {
         date: post.date,
         slug: normalizeSlug(post.slug),
         legacyPath: pathFromLink(post.link),
+        aliasPaths: [],
         pathSegments: pathToSegments(post.link),
         link: post.link,
         title: decodeHtmlEntities(post.title.rendered),
@@ -434,13 +436,16 @@ const getSourceProtectedPosts = cache(async (): Promise<PostEntry[]> => {
     sortByDateDesc(payload.protectedPosts).map(async (post) => {
       const excerptHtml = await rewriteHtmlAssetUrls(post.excerptHtml);
       const contentHtml = await rewriteHtmlAssetUrls(post.contentHtml);
+      const primaryPath = pathFromLink(post.link);
+      const directPath = normalizePath(post.directPath || `/${post.id}`);
 
       return {
         id: post.id,
         date: post.date,
         slug: normalizeSlug(post.slug),
-        legacyPath: normalizePath(post.directPath || `/${post.id}`),
-        pathSegments: pathToSegments(post.directPath || `/${post.id}`),
+        legacyPath: primaryPath,
+        aliasPaths: directPath === primaryPath ? [] : [directPath],
+        pathSegments: pathToSegments(primaryPath),
         link: post.link,
         title: normalizeProtectedTitle(post.title),
         excerpt: stripHtml(post.excerptHtml || post.contentHtml),
@@ -466,7 +471,8 @@ function mapAdminPostToEntry(post: AdminPostRecord): PostEntry {
     id: post.id,
     date: post.publishedAt,
     slug: post.slug,
-    legacyPath: post.path,
+    legacyPath: normalizePath(post.path),
+    aliasPaths: [],
     pathSegments: pathToSegments(post.path),
     link: post.path,
     title: post.title,
@@ -491,7 +497,22 @@ async function getMergedPosts() {
   ]);
 
   const adminEntries = adminPosts.map(mapAdminPostToEntry);
-  return [...sourcePosts, ...protectedPosts, ...adminEntries];
+  const ordered = [...adminEntries, ...protectedPosts, ...sourcePosts];
+  const seenIds = new Set<number>();
+  const seenPaths = new Set<string>();
+  const merged: PostEntry[] = [];
+
+  for (const post of ordered) {
+    if (seenIds.has(post.id) || seenPaths.has(post.legacyPath)) {
+      continue;
+    }
+
+    merged.push(post);
+    seenIds.add(post.id);
+    seenPaths.add(post.legacyPath);
+  }
+
+  return merged;
 }
 
 export async function getPosts() {
@@ -528,7 +549,8 @@ export async function getPostBySlug(slug: string) {
 export async function getPostByPath(path: string) {
   const posts = await getMergedPosts();
   const normalizedPath = normalizePath(path);
-  const match = posts.find((post) => post.legacyPath === normalizedPath) ?? null;
+  const match =
+    posts.find((post) => post.legacyPath === normalizedPath || post.aliasPaths.includes(normalizedPath)) ?? null;
   if (!match || match.visibility === "private") {
     return null;
   }
