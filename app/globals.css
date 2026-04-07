@@ -805,6 +805,96 @@ body {
   color: var(--muted);
 }
 
+.admin-editor-field {
+  gap: 10px;
+}
+
+.admin-editor-field > span {
+  font-weight: 700;
+}
+
+.editor-description {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-editor-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-editor-topbar,
+.admin-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-editor-topbar {
+  justify-content: space-between;
+}
+
+.admin-editor-mode-tabs,
+.admin-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editor-tab,
+.toolbar-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.editor-tab.is-active {
+  border-color: rgba(63, 107, 90, 0.35);
+  background: rgba(63, 107, 90, 0.1);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.admin-editor-surface,
+.editor-html-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-editor-surface {
+  overflow-y: auto;
+  line-height: 1.8;
+}
+
+.admin-editor-surface:focus,
+.editor-html-textarea:focus {
+  outline: 2px solid rgba(63, 107, 90, 0.18);
+  outline-offset: 0;
+  border-color: rgba(63, 107, 90, 0.35);
+}
+
+.editor-html-textarea {
+  min-height: 320px;
+  resize: vertical;
+}
+
+.editor-status {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 .action-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;

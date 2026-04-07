@@ -10,6 +10,7 @@
 - `/home/vboxuser/aloha_clone/docs/site-audit.md`
 - `/home/vboxuser/aloha_clone/docs/asset-pipeline.md`
 - `/home/vboxuser/aloha_clone/docs/browseros-qa.md`
+- `/home/vboxuser/aloha_clone/docs/admin-editor.md`
 - `/home/vboxuser/aloha_clone/docs/vercel-deploy.md`
 - `/home/vboxuser/aloha_clone/docs/purchase-flow.md`
 - `/home/vboxuser/aloha_clone/docs/safety.md`

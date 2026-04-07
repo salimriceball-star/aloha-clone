@@ -1,4 +1,5 @@
 import { savePostAction } from "@/app/admin/actions";
+import { AdminHtmlEditor } from "@/components/admin-html-editor";
 import { listAdminPosts } from "@/lib/admin-store";
 
 export default async function AdminPostsPage({
@@ -43,14 +44,8 @@ export default async function AdminPostsPage({
             <span>비밀번호</span>
             <input name="accessPassword" placeholder="visibility=password 인 경우만 입력" />
           </label>
-          <label className="field field-wide">
-            <span>요약 HTML</span>
-            <textarea name="excerptHtml" rows={5} />
-          </label>
-          <label className="field field-wide">
-            <span>본문 HTML</span>
-            <textarea name="contentHtml" rows={16} required />
-          </label>
+          <AdminHtmlEditor label="요약" name="excerptHtml" minHeight={180} />
+          <AdminHtmlEditor label="본문" name="contentHtml" minHeight={360} required />
           <label className="admin-checkbox">
             <input type="checkbox" name="listedInArchive" defaultChecked />
             <span>글 목록과 홈에 노출</span>

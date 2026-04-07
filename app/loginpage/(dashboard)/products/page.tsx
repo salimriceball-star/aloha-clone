@@ -1,4 +1,5 @@
 import { saveProductAction, saveProductCommonIntroAction } from "@/app/admin/actions";
+import { AdminHtmlEditor } from "@/components/admin-html-editor";
 import { getProductCommonIntroHtml, getProducts } from "@/lib/site-data";
 
 export default async function LoginpageProductsPage({
@@ -18,10 +19,13 @@ export default async function LoginpageProductsPage({
         <p className="eyebrow">Products</p>
         <h1>상품 관리</h1>
         <form action={saveProductCommonIntroAction} className="admin-form-grid">
-          <label className="field field-wide">
-            <span>상품 공통 도입부 HTML</span>
-            <textarea name="value" rows={16} defaultValue={productCommonIntroHtml} />
-          </label>
+          <AdminHtmlEditor
+            label="상품 공통 도입부"
+            name="value"
+            initialHtml={productCommonIntroHtml}
+            minHeight={360}
+            description="모든 상품 상세 상단에 공통으로 들어가는 안내 영역입니다."
+          />
           <button type="submit" className="action-button">
             공통 안내 저장
           </button>
@@ -81,14 +85,18 @@ export default async function LoginpageProductsPage({
                 <span>대표 이미지 URL</span>
                 <input name="imageUrl" defaultValue={product.imageUrl ?? ""} />
               </label>
-              <label className="field field-wide">
-                <span>요약 HTML override</span>
-                <textarea name="excerptHtml" rows={4} defaultValue={product.excerptHtml} />
-              </label>
-              <label className="field field-wide">
-                <span>본문 HTML override</span>
-                <textarea name="contentHtml" rows={10} defaultValue={product.contentHtml} />
-              </label>
+              <AdminHtmlEditor
+                label="요약 override"
+                name="excerptHtml"
+                initialHtml={product.excerptHtml}
+                minHeight={180}
+              />
+              <AdminHtmlEditor
+                label="본문 override"
+                name="contentHtml"
+                initialHtml={product.contentHtml}
+                minHeight={320}
+              />
               <button type="submit" className="action-button">
                 저장
               </button>

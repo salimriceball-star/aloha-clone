@@ -2,12 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { v2 as cloudinary } from "cloudinary";
 
 import { clearAdminSession, createAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/admin-auth";
-import { saveAdminAsset, saveAdminPost, saveAdminProductOverride, saveAdminSetting } from "@/lib/admin-store";
-import { cloudinaryFolder } from "@/lib/project-config";
-import { getServerEnv } from "@/lib/server-env";
+import { isUploadableFile, uploadAdminFiles } from "@/lib/admin-uploads";
+import { saveAdminPost, saveAdminProductOverride, saveAdminSetting } from "@/lib/admin-store";
 
 const productCommonIntroSettingKey = "product_common_intro_html";
 
@@ -27,21 +25,6 @@ function normalizePathInput(value: string) {
 
   const compact = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return compact.replace(/\/+$/, "");
-}
-
-function getCloudinaryApiSecret() {
-  const directSecret = getServerEnv("CLOUDINARY_API_SECRET");
-  if (directSecret) {
-    return directSecret;
-  }
-
-  const cloudinaryUrl = getServerEnv("CLOUDINARY_URL");
-  if (!cloudinaryUrl) {
-    throw new Error("Missing Cloudinary credentials.");
-  }
-
-  const parsed = new URL(cloudinaryUrl);
-  return parsed.password;
 }
 
 function formatDatePath(value: string) {
@@ -157,42 +140,15 @@ export async function saveProductCommonIntroAction(formData: FormData) {
 export async function uploadAssetAction(formData: FormData) {
   await requireAdminSession();
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
+  const files = formData
+    .getAll("file")
+    .filter((value): value is File => isUploadableFile(value) && value.size > 0);
+
+  if (files.length === 0) {
     redirect("/loginpage/assets?error=1");
   }
 
-  const cloudName = getServerEnv("CLOUDINARY_CLOUD_NAME");
-  const apiKey = getServerEnv("CLOUDINARY_API_KEY");
-  const apiSecret = getCloudinaryApiSecret();
   const folderOverride = String(formData.get("folder") ?? "").trim();
-
-  if (!cloudName || !apiKey) {
-    throw new Error("Cloudinary credentials are incomplete.");
-  }
-
-  cloudinary.config({
-    cloud_name: cloudName,
-    api_key: apiKey,
-    api_secret: apiSecret,
-    secure: true
-  });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const dataUri = `data:${file.type || "application/octet-stream"};base64,${buffer.toString("base64")}`;
-  const upload = await cloudinary.uploader.upload(dataUri, {
-    folder: folderOverride || cloudinaryFolder,
-    resource_type: "auto",
-    use_filename: true,
-    unique_filename: true,
-    overwrite: false
-  });
-
-  await saveAdminAsset({
-    publicId: upload.public_id,
-    secureUrl: upload.secure_url,
-    originalFilename: file.name || null
-  });
-
-  redirect("/loginpage/assets?uploaded=1");
+  await uploadAdminFiles(files, folderOverride);
+  redirect(`/loginpage/assets?uploaded=${files.length}`);
 }

@@ -1,14 +1,16 @@
-import { saveProductAction } from "@/app/admin/actions";
-import { getProducts } from "@/lib/site-data";
+import { saveProductAction, saveProductCommonIntroAction } from "@/app/admin/actions";
+import { AdminHtmlEditor } from "@/components/admin-html-editor";
+import { getProductCommonIntroHtml, getProducts } from "@/lib/site-data";
 
 export default async function AdminProductsPage({
   searchParams
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; introSaved?: string }>;
 }) {
-  const [products, params] = await Promise.all([
+  const [products, params, productCommonIntroHtml] = await Promise.all([
     getProducts({ includeHidden: true, includePrivate: true }),
-    searchParams
+    searchParams,
+    getProductCommonIntroHtml()
   ]);
 
   return (
@@ -16,6 +18,19 @@ export default async function AdminProductsPage({
       <section className="panel">
         <p className="eyebrow">Products</p>
         <h1>상품 관리</h1>
+        <form action={saveProductCommonIntroAction} className="admin-form-grid">
+          <AdminHtmlEditor
+            label="상품 공통 도입부"
+            name="value"
+            initialHtml={productCommonIntroHtml}
+            minHeight={360}
+            description="모든 상품 상세 상단에 공통으로 들어가는 안내 영역입니다."
+          />
+          <button type="submit" className="action-button">
+            공통 안내 저장
+          </button>
+        </form>
+        {params.introSaved === "1" ? <p className="inline-note">공통 안내가 저장되었습니다.</p> : null}
         {params.saved === "1" ? <p className="inline-note">상품 설정이 저장되었습니다.</p> : null}
         {params.error === "1" ? <p className="warning-text">상품 식별자를 확인해 주세요.</p> : null}
       </section>
@@ -70,14 +85,18 @@ export default async function AdminProductsPage({
                 <span>대표 이미지 URL</span>
                 <input name="imageUrl" defaultValue={product.imageUrl ?? ""} />
               </label>
-              <label className="field field-wide">
-                <span>요약 HTML override</span>
-                <textarea name="excerptHtml" rows={4} defaultValue={product.excerptHtml} />
-              </label>
-              <label className="field field-wide">
-                <span>본문 HTML override</span>
-                <textarea name="contentHtml" rows={10} defaultValue={product.contentHtml} />
-              </label>
+              <AdminHtmlEditor
+                label="요약 override"
+                name="excerptHtml"
+                initialHtml={product.excerptHtml}
+                minHeight={180}
+              />
+              <AdminHtmlEditor
+                label="본문 override"
+                name="contentHtml"
+                initialHtml={product.contentHtml}
+                minHeight={320}
+              />
               <button type="submit" className="action-button">
                 저장
               </button>

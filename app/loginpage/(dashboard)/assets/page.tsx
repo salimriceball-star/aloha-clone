@@ -7,6 +7,7 @@ export default async function LoginpageAssetsPage({
   searchParams: Promise<{ uploaded?: string; error?: string }>;
 }) {
   const [assets, params] = await Promise.all([listAdminAssets(), searchParams]);
+  const uploadedCount = Number(params.uploaded ?? "0");
 
   return (
     <section className="stack-grid">
@@ -16,7 +17,7 @@ export default async function LoginpageAssetsPage({
         <form action={uploadAssetAction} className="admin-form-grid">
           <label className="field field-wide">
             <span>파일</span>
-            <input type="file" name="file" accept="image/*,.pdf,.zip" required />
+            <input type="file" name="file" accept="image/*,.pdf,.zip" multiple required />
           </label>
           <label className="field field-wide">
             <span>Cloudinary 폴더</span>
@@ -25,7 +26,7 @@ export default async function LoginpageAssetsPage({
           <button type="submit" className="action-button">
             업로드
           </button>
-          {params.uploaded === "1" ? <p className="inline-note">업로드가 완료되었습니다.</p> : null}
+          {uploadedCount > 0 ? <p className="inline-note">{uploadedCount}개 업로드가 완료되었습니다.</p> : null}
           {params.error === "1" ? <p className="warning-text">업로드할 파일을 선택해 주세요.</p> : null}
         </form>
       </section>
