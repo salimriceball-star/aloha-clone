@@ -1,4 +1,5 @@
 import { withAdminDb } from "@/lib/admin-db";
+import type { StoredOrder, StoredOrderItem } from "@/lib/purchase-flow";
 
 export type AdminPostRecord = {
   id: number;
@@ -41,8 +42,15 @@ export type AdminSettingRecord = {
   updatedAt: string | null;
 };
 
+export type AdminOrderRecord = StoredOrder & {
+  status: "pending" | "paid" | "done" | "cancelled";
+};
+
 type AdminPostInput = Omit<AdminPostRecord, "id">;
 type AdminProductInput = Omit<AdminProductOverride, "updatedAt">;
+type AdminOrderInput = StoredOrder & {
+  status?: AdminOrderRecord["status"];
+};
 
 function normalizeNullableText(value: string | null | undefined) {
   const trimmed = value?.trim();
@@ -56,6 +64,47 @@ function toNumberOrNull(value: number | string | null | undefined) {
 
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function mapStoredOrderItem(row: Record<string, unknown>) {
+  return {
+    id: row.product_id === null ? 0 : Number(row.product_id),
+    slug: String(row.slug),
+    title: String(row.title),
+    excerpt: String(row.excerpt ?? ""),
+    priceText: row.price_text === null ? null : String(row.price_text),
+    priceValue: row.price_value === null ? null : Number(row.price_value),
+    imageUrl: row.image_url === null ? null : String(row.image_url),
+    reviewCount: Number(row.review_count ?? 0),
+    stockState:
+      row.stock_state === "available" || row.stock_state === "reserved" || row.stock_state === "soldout"
+        ? row.stock_state
+        : undefined,
+    quantity: Number(row.quantity ?? 1),
+    lineTotal: Number(row.line_total ?? 0)
+  } as StoredOrderItem;
+}
+
+function mapStoredOrder(
+  row: Record<string, unknown>,
+  items: StoredOrderItem[],
+  statusOverride?: AdminOrderRecord["status"]
+) {
+  return {
+    id: String(row.id),
+    key: String(row.order_key),
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+    customerName: String(row.customer_name ?? ""),
+    email: String(row.email ?? ""),
+    phone: String(row.phone ?? ""),
+    memo: String(row.memo ?? ""),
+    items,
+    totalValue: Number(row.total_value ?? 0),
+    totalText: String(row.total_text ?? ""),
+    status:
+      statusOverride ??
+      (row.status === "paid" || row.status === "done" || row.status === "cancelled" ? row.status : "pending")
+  } as AdminOrderRecord;
 }
 
 export async function listAdminPosts() {
@@ -309,4 +358,156 @@ export async function saveAdminSetting(input: { key: string; value: string }) {
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
     } as AdminSettingRecord;
   }, null as AdminSettingRecord | null);
+}
+
+export async function saveAdminOrder(input: AdminOrderInput) {
+  return withAdminDb(async (pool) => {
+    const client = await pool.connect();
+
+    try {
+      await client.query("begin");
+
+      const orderResult = await client.query(
+        `
+          insert into clone_orders (
+            id, order_key, created_at, customer_name, email, phone, memo, total_value, total_text, status
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          on conflict (id) do update
+          set
+            order_key = excluded.order_key,
+            created_at = excluded.created_at,
+            customer_name = excluded.customer_name,
+            email = excluded.email,
+            phone = excluded.phone,
+            memo = excluded.memo,
+            total_value = excluded.total_value,
+            total_text = excluded.total_text,
+            status = excluded.status
+          returning id, order_key, created_at, customer_name, email, phone, memo, total_value, total_text, status
+        `,
+        [
+          input.id,
+          input.key,
+          input.createdAt,
+          input.customerName,
+          input.email,
+          input.phone,
+          input.memo,
+          input.totalValue,
+          input.totalText,
+          input.status ?? "pending"
+        ]
+      );
+
+      await client.query(`delete from clone_order_items where order_id = $1`, [input.id]);
+
+      for (const item of input.items) {
+        await client.query(
+          `
+            insert into clone_order_items (
+              order_id, product_id, slug, title, excerpt, price_text, price_value, image_url,
+              review_count, stock_state, quantity, line_total
+            )
+            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `,
+          [
+            input.id,
+            item.id || null,
+            item.slug,
+            item.title,
+            item.excerpt,
+            item.priceText,
+            item.priceValue,
+            item.imageUrl,
+            item.reviewCount,
+            item.stockState ?? null,
+            item.quantity,
+            item.lineTotal
+          ]
+        );
+      }
+
+      await client.query("commit");
+      return mapStoredOrder(orderResult.rows[0], input.items, input.status ?? "pending");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }, null as AdminOrderRecord | null);
+}
+
+export async function listAdminOrders(limit = 40) {
+  return withAdminDb(async (pool) => {
+    const orderResult = await pool.query(
+      `
+        select id, order_key, created_at, customer_name, email, phone, memo, total_value, total_text, status
+        from clone_orders
+        order by created_at desc, id desc
+        limit $1
+      `,
+      [limit]
+    );
+
+    const orders = orderResult.rows;
+    if (orders.length === 0) {
+      return [] as AdminOrderRecord[];
+    }
+
+    const ids = orders.map((row) => String(row.id));
+    const itemResult = await pool.query(
+      `
+        select order_id, product_id, slug, title, excerpt, price_text, price_value, image_url,
+               review_count, stock_state, quantity, line_total
+        from clone_order_items
+        where order_id = any($1::text[])
+        order by id asc
+      `,
+      [ids]
+    );
+
+    const itemsByOrderId = new Map<string, StoredOrderItem[]>();
+    for (const row of itemResult.rows) {
+      const orderId = String(row.order_id);
+      const current = itemsByOrderId.get(orderId) ?? [];
+      current.push(mapStoredOrderItem(row));
+      itemsByOrderId.set(orderId, current);
+    }
+
+    return orders.map((row) => mapStoredOrder(row, itemsByOrderId.get(String(row.id)) ?? []));
+  }, [] as AdminOrderRecord[]);
+}
+
+export async function getAdminOrderById(orderId: string) {
+  return withAdminDb(async (pool) => {
+    const orderResult = await pool.query(
+      `
+        select id, order_key, created_at, customer_name, email, phone, memo, total_value, total_text, status
+        from clone_orders
+        where id = $1
+        limit 1
+      `,
+      [orderId]
+    );
+
+    const orderRow = orderResult.rows[0];
+    if (!orderRow) {
+      return null as AdminOrderRecord | null;
+    }
+
+    const itemResult = await pool.query(
+      `
+        select order_id, product_id, slug, title, excerpt, price_text, price_value, image_url,
+               review_count, stock_state, quantity, line_total
+        from clone_order_items
+        where order_id = $1
+        order by id asc
+      `,
+      [orderId]
+    );
+
+    return mapStoredOrder(orderRow, itemResult.rows.map((row) => mapStoredOrderItem(row)));
+  }, null as AdminOrderRecord | null);
 }

@@ -901,6 +901,42 @@ body {
   background: rgba(63, 107, 90, 0.08);
 }
 
+.admin-order-card,
+.admin-order-meta {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-order-head {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.admin-order-head h2 {
+  margin: 0.25rem 0 0;
+}
+
+.admin-order-meta {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.admin-order-meta div {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+}
+
+.admin-order-meta span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .admin-checkbox {
   display: flex;
   align-items: center;

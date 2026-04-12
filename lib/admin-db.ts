@@ -31,6 +31,7 @@ function getPool() {
     globalThis.__alohaPgPool__ = new Pool({
       connectionString,
       max: 4,
+      connectionTimeoutMillis: 5_000,
       ssl: { rejectUnauthorized: false }
     });
   }
@@ -86,6 +87,35 @@ async function ensureSchema(pool: Pool) {
       key text primary key,
       value text not null default '',
       updated_at timestamptz not null default now()
+    );
+
+    create table if not exists clone_orders (
+      id text primary key,
+      order_key text not null unique,
+      created_at timestamptz not null default now(),
+      customer_name text not null default '',
+      email text not null default '',
+      phone text not null default '',
+      memo text not null default '',
+      total_value bigint not null default 0,
+      total_text text not null default '',
+      status text not null default 'pending' check (status in ('pending', 'paid', 'done', 'cancelled'))
+    );
+
+    create table if not exists clone_order_items (
+      id bigserial primary key,
+      order_id text not null references clone_orders(id) on delete cascade,
+      product_id bigint,
+      slug text not null,
+      title text not null,
+      excerpt text not null default '',
+      price_text text,
+      price_value bigint,
+      image_url text,
+      review_count integer not null default 0,
+      stock_state text check (stock_state in ('available', 'reserved', 'soldout')),
+      quantity integer not null default 1,
+      line_total bigint not null default 0
     );
   `);
 

@@ -1,10 +1,11 @@
-import { listAdminAssets, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
+import { listAdminAssets, listAdminOrders, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
 
 export default async function LoginpageDashboardPage() {
-  const [posts, products, assets] = await Promise.all([
+  const [posts, products, assets, orders] = await Promise.all([
     listAdminPosts(),
     listAdminProductOverrides(),
-    listAdminAssets()
+    listAdminAssets(),
+    listAdminOrders(12)
   ]);
 
   return (
@@ -24,6 +25,10 @@ export default async function LoginpageDashboardPage() {
           <article className="stat-card">
             <span>업로드 자산</span>
             <strong>{assets.length}</strong>
+          </article>
+          <article className="stat-card">
+            <span>최근 주문</span>
+            <strong>{orders.length}</strong>
           </article>
         </div>
       </section>

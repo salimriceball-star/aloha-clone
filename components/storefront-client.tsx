@@ -119,14 +119,6 @@ function lineTotalLabel(item: ResolvedCartItem) {
   return formatWon(item.lineTotal);
 }
 
-function buildOrderId() {
-  return `${Date.now()}`.slice(-6);
-}
-
-function buildOrderKey() {
-  return `wc_order_${Math.random().toString(36).slice(2, 12)}`;
-}
-
 function useCartState(catalog: PurchaseProduct[]) {
   const [cartItems, setCartItems] = useState<ResolvedCartItem[]>([]);
 
@@ -353,37 +345,48 @@ export function CheckoutPageClient({ catalog }: { catalog: PurchaseProduct[] }) 
   const [phone, setPhone] = useState("");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const submitOrder = (event: FormEvent<HTMLFormElement>) => {
+  const submitOrder = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!cartItems.length) {
       return;
     }
 
     setSubmitting(true);
+    setSubmitError("");
 
-    const id = buildOrderId();
-    const key = buildOrderKey();
-    const order: StoredOrder = {
-      id,
-      key,
-      createdAt: new Date().toISOString(),
-      customerName,
-      email,
-      phone,
-      memo,
-      items: cartItems.map((item) => ({
-        ...item.product,
-        quantity: item.quantity,
-        lineTotal: item.lineTotal
-      })),
-      totalValue,
-      totalText
-    };
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          email,
+          phone,
+          memo,
+          items: cartItems.map((item) => ({
+            ...item.product,
+            quantity: item.quantity,
+            lineTotal: item.lineTotal
+          })),
+          totalValue,
+          totalText
+        })
+      });
 
-    writeOrder(order);
-    clearCart();
-    router.push(`/checkout/order-received/${id}?key=${encodeURIComponent(key)}`);
+      const payload = (await response.json().catch(() => null)) as { error?: string; order?: StoredOrder } | null;
+      if (!response.ok || !payload?.order) {
+        throw new Error(payload?.error ?? "주문을 저장하지 못했습니다.");
+      }
+
+      writeOrder(payload.order);
+      clearCart();
+      router.push(`/checkout/order-received/${payload.order.id}?key=${encodeURIComponent(payload.order.key)}`);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "주문 처리 중 문제가 발생했습니다.");
+      setSubmitting(false);
+    }
   };
 
   if (!cartItems.length) {
@@ -468,24 +471,46 @@ export function CheckoutPageClient({ catalog }: { catalog: PurchaseProduct[] }) 
           <button type="submit" className="action-button" disabled={submitting}>
             주문 확정
           </button>
+          {submitError ? <p className="warning-text">{submitError}</p> : null}
         </section>
       </aside>
     </form>
   );
 }
 
-export function OrderReceivedClient({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<StoredOrder | null>(null);
+function readMatchingOrder(orderId: string, orderKey: string | null) {
+  const order = readOrder(orderId);
+  if (!order) {
+    return null as StoredOrder | null;
+  }
+
+  if (orderKey && order.key !== orderKey) {
+    return null as StoredOrder | null;
+  }
+
+  return order;
+}
+
+export function OrderReceivedClient({
+  orderId,
+  orderKey = null,
+  initialOrder = null
+}: {
+  orderId: string;
+  orderKey?: string | null;
+  initialOrder?: StoredOrder | null;
+}) {
+  const [order, setOrder] = useState<StoredOrder | null>(initialOrder);
 
   useEffect(() => {
     const syncOrder = () => {
       startTransition(() => {
-        setOrder(readOrder(orderId));
+        setOrder((current) => current ?? readMatchingOrder(orderId, orderKey));
       });
     };
 
     syncOrder();
-  }, [orderId]);
+  }, [orderId, orderKey]);
   const createdAtText = order?.createdAt
     ? new Date(order.createdAt).toLocaleDateString("ko-KR", {
         year: "numeric",

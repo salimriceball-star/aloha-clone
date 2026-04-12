@@ -18,6 +18,7 @@ export default async function LoginpageDashboardLayout({
           <Link href="/loginpage/dashboard">대시보드</Link>
           <Link href="/loginpage/posts">글쓰기</Link>
           <Link href="/loginpage/products">상품 관리</Link>
+          <Link href="/loginpage/orders">주문 확인</Link>
           <Link href="/loginpage/assets">이미지 업로드</Link>
         </nav>
         <form action={logoutAdminAction}>
