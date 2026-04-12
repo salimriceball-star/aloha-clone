@@ -15,3 +15,4 @@ coverage/
 *.local.*
 data/assets/raw/
 artifacts/
+.vercel
