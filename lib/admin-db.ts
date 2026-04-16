@@ -117,6 +117,24 @@ async function ensureSchema(pool: Pool) {
       quantity integer not null default 1,
       line_total bigint not null default 0
     );
+
+    alter table if exists public.clone_posts enable row level security;
+    alter table if exists public.clone_products enable row level security;
+    alter table if exists public.clone_assets enable row level security;
+    alter table if exists public.clone_settings enable row level security;
+    alter table if exists public.clone_orders enable row level security;
+    alter table if exists public.clone_order_items enable row level security;
+
+    revoke all on table public.clone_posts from anon, authenticated;
+    revoke all on table public.clone_products from anon, authenticated;
+    revoke all on table public.clone_assets from anon, authenticated;
+    revoke all on table public.clone_settings from anon, authenticated;
+    revoke all on table public.clone_orders from anon, authenticated;
+    revoke all on table public.clone_order_items from anon, authenticated;
+
+    revoke all on all sequences in schema public from anon, authenticated;
+    alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;
+    alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated;
   `);
 
   globalThis.__alohaPgSchemaReady__ = true;

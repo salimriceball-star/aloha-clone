@@ -14,6 +14,7 @@
 - `/home/vboxuser/aloha_clone/docs/vercel-deploy.md`
 - `/home/vboxuser/aloha_clone/docs/purchase-flow.md`
 - `/home/vboxuser/aloha_clone/docs/order-admin.md`
+- `/home/vboxuser/aloha_clone/docs/supabase-security.md`
 - `/home/vboxuser/aloha_clone/docs/safety.md`
 - 현재 milestone 진행 상태는 `/home/vboxuser/aloha_clone/progress.md` 를 기준으로 유지한다.
 - 서비스/로그인/토큰 등 로컬 운영 정보는 아래 파일을 우선 확인한다.

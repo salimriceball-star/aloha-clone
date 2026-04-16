@@ -1,11 +1,10 @@
 # Progress
 
-현재 milestone: order persistence and admin visibility
+현재 milestone: supabase rls hardening
 
-- [x] 현재 주문 저장/관리 구조 확인
-- [ ] 주문 DB 스키마 및 저장 로직 추가
-- [ ] checkout/order-received 서버 주문 조회 연결
-- [ ] `/loginpage/orders` 관리자 주문 화면 추가
-- [ ] 주문 생성 및 관리자 조회 테스트
-- [ ] guarded 검증
-- [ ] docs 및 memory 마감
+- [x] 현재 공개 스키마/RLS 상태 확인
+- [x] DB RLS 및 권한 회수 적용
+- [x] 앱 스키마 초기화 로직에 보안 가드 반영
+- [x] anon/authenticated 접근 차단 검증
+- [x] 주문/관리 기능 회귀 검증
+- [x] docs 및 memory 마감
