@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProductPriceContent } from "@/components/product-price-content";
 import { ProductStatusBadges } from "@/components/product-status-badges";
@@ -55,6 +55,9 @@ export default async function ProductDetailPage({
 
   if (!product) {
     notFound();
+  }
+  if (slug !== product.slug) {
+    permanentRedirect(`/product/${encodeURIComponent(product.slug)}`);
   }
 
   const purchaseProduct = {

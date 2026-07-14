@@ -7,7 +7,7 @@ import { getServerEnv } from "@/lib/server-env";
 declare global {
   var __alohaPgPool__: Pool | undefined;
   var __alohaPgSchemaReady__: boolean | undefined;
-  var __alohaPgUnavailable__: boolean | undefined;
+  var __alohaPgRetryAt__: number | undefined;
   var __alohaPgErrorLogged__: boolean | undefined;
 }
 
@@ -15,10 +15,6 @@ dns.setDefaultResultOrder("ipv4first");
 
 function getPool() {
   if (process.env.ALOHA_SKIP_ADMIN_DB === "1") {
-    return null as Pool | null;
-  }
-
-  if (globalThis.__alohaPgUnavailable__) {
     return null as Pool | null;
   }
 
@@ -151,6 +147,9 @@ async function ensureSchema(pool: Pool) {
 }
 
 export async function withAdminDb<T>(work: (pool: Pool) => Promise<T>, fallback: T) {
+  if ((globalThis.__alohaPgRetryAt__ ?? 0) > Date.now()) {
+    return fallback;
+  }
   const pool = getPool();
   if (!pool) {
     return fallback;
@@ -158,13 +157,26 @@ export async function withAdminDb<T>(work: (pool: Pool) => Promise<T>, fallback:
 
   try {
     await ensureSchema(pool);
-    return await work(pool);
+    const result = await work(pool);
+    globalThis.__alohaPgRetryAt__ = undefined;
+    return result;
   } catch (error) {
-    globalThis.__alohaPgUnavailable__ = true;
+    globalThis.__alohaPgRetryAt__ = Date.now() + 15_000;
     if (!globalThis.__alohaPgErrorLogged__) {
       console.error("[admin-db]", error);
       globalThis.__alohaPgErrorLogged__ = true;
     }
     return fallback;
   }
+}
+
+export async function withRequiredAdminDb<T>(work: (pool: Pool) => Promise<T>) {
+  const pool = getPool();
+  if (!pool) {
+    throw new Error("Admin database is not configured.");
+  }
+  await ensureSchema(pool);
+  const result = await work(pool);
+  globalThis.__alohaPgRetryAt__ = undefined;
+  return result;
 }

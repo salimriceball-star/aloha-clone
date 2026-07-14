@@ -1,9 +1,11 @@
 # Progress
 
-현재 milestone: cloudinary env import + incremental backup
+현재 milestone: product copy + reliable editor persistence
 
-- [x] Markdown 키를 `.local/cloudinary.env`로 변환하는 보안 스크립트 구현
-- [x] Windows 경로 변환, 값 비출력, 원자 저장, mode 600 검증
-- [x] 홈 디렉터리 원본 Markdown에서 `.local/cloudinary.env` 생성
-- [x] Cloudinary 신규 자산 81개 증분 백업 및 manifest 검증
+- [x] production 227 업로드/공개 HTML 및 저장 경로 원인 감사
+- [x] 독립 상품 복사·슬러그 변경 데이터 모델 구현
+- [x] 상품 목록 복사 버튼과 편집 화면 공개 링크 구현
+- [x] 에디터 제출 동기화 및 DB 저장 실패 표시 보강
+- [x] Cloudinary 업로드 공급자 확인 및 단계별 상태 표시
+- [x] lint/build/동작 검증
 - [x] 문서·memory·commit·push 마감

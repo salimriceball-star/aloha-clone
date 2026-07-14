@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { clearAdminSession, createAdminSession, requireAdminSession, verifyAdminPassword } from "@/lib/admin-auth";
 import { isUploadableFile, uploadAdminFiles } from "@/lib/admin-uploads";
 import { getAdminPostById, saveAdminPost, saveAdminProductOverride, saveAdminSetting } from "@/lib/admin-store";
-import { getProducts } from "@/lib/site-data";
+import { getProductBySlug, getProducts } from "@/lib/site-data";
 
 const productCommonIntroSettingKey = "product_common_intro_html";
 
@@ -182,34 +182,109 @@ export async function setPostPublicationAction(formData: FormData) {
 export async function saveProductAction(formData: FormData) {
   await requireAdminSession();
 
-  const slug = String(formData.get("slug") ?? "").trim();
+  const overrideId = Number(formData.get("overrideId") ?? 0) || null;
+  const originalSlug = slugify(String(formData.get("originalSlug") ?? ""));
+  const slug = slugify(String(formData.get("slug") ?? ""));
   const sourceProductId = Number(formData.get("sourceProductId") ?? 0) || null;
-  const returnTo = String(formData.get("returnTo") ?? "");
+  const page = Math.max(1, Number(formData.get("page") ?? 1) || 1);
+  const editPath = `/loginpage/products/edit/${encodeURIComponent(originalSlug || slug)}`;
+  const errorReturnTo = page > 1 ? `${editPath}?page=${page}` : editPath;
+  const rawVisibility = String(formData.get("visibility") ?? "public");
+  const visibility = (["public", "hidden", "private"] as const).includes(
+    rawVisibility as "public" | "hidden" | "private"
+  )
+    ? (rawVisibility as "public" | "hidden" | "private")
+    : "private";
+  const rawStockState = String(formData.get("stockState") ?? "available");
+  const stockState = (["available", "reserved", "soldout"] as const).includes(
+    rawStockState as "available" | "reserved" | "soldout"
+  )
+    ? (rawStockState as "available" | "reserved" | "soldout")
+    : "available";
+  const parsePrice = (value: FormDataEntryValue | null) => {
+    const text = String(value ?? "").trim();
+    if (!text) return null;
+    const number = Number(text);
+    return Number.isFinite(number) && number >= 0 ? number : null;
+  };
 
   if (!slug) {
-    redirect("/loginpage/products?error=1");
+    redirect(buildRedirectPath(errorReturnTo, "/loginpage/products", { error: "slug" }));
   }
 
-  await saveAdminProductOverride({
-    sourceProductId,
-    slug,
-    title: String(formData.get("title") ?? ""),
-    excerptHtml: String(formData.get("excerptHtml") ?? ""),
-    contentHtml: String(formData.get("contentHtml") ?? ""),
-    imageUrl: String(formData.get("imageUrl") ?? ""),
-    regularPriceValue: Number(formData.get("regularPriceValue") ?? "") || null,
-    salePriceValue: Number(formData.get("salePriceValue") ?? "") || null,
-    visibility: String(formData.get("visibility") ?? "public") as "public" | "hidden" | "private",
-    stockState: String(formData.get("stockState") ?? "available") as "available" | "reserved" | "soldout"
-  });
+  try {
+    await saveAdminProductOverride({
+      id: overrideId,
+      sourceProductId,
+      slug,
+      title: String(formData.get("title") ?? ""),
+      excerptHtml: String(formData.get("excerptHtml") ?? ""),
+      contentHtml: String(formData.get("contentHtml") ?? ""),
+      imageUrl: String(formData.get("imageUrl") ?? ""),
+      regularPriceValue: parsePrice(formData.get("regularPriceValue")),
+      salePriceValue: parsePrice(formData.get("salePriceValue")),
+      visibility,
+      stockState
+    });
+  } catch (error) {
+    console.error("[save-product]", error instanceof Error ? error.message : "Unknown database error");
+    redirect(buildRedirectPath(errorReturnTo, "/loginpage/products", { error: "save" }));
+  }
 
   revalidatePath("/");
   revalidatePath("/shop");
   revalidatePath("/shop/page/[page]", "page");
+  if (originalSlug) revalidatePath(`/product/${originalSlug}`);
   revalidatePath(`/product/${slug}`);
   revalidatePath("/product/[slug]", "page");
+  revalidatePath("/loginpage/products");
+  revalidatePath("/loginpage/products/page/[page]", "page");
   revalidatePath("/sitemap.xml");
-  redirect(buildRedirectPath(returnTo, "/loginpage/products", { saved: "1" }));
+  const savedPath = `/loginpage/products/edit/${encodeURIComponent(slug)}`;
+  redirect(buildRedirectPath(page > 1 ? `${savedPath}?page=${page}` : savedPath, savedPath, { saved: "1" }));
+}
+
+export async function duplicateProductAction(formData: FormData) {
+  await requireAdminSession();
+
+  const sourceSlug = String(formData.get("slug") ?? "").trim();
+  const page = Math.max(1, Number(formData.get("currentPage") ?? 1) || 1);
+  const listPath = page > 1 ? `/loginpage/products/page/${page}` : "/loginpage/products";
+  const source = sourceSlug
+    ? await getProductBySlug(sourceSlug, { includeHidden: true, includePrivate: true })
+    : null;
+
+  if (!source) {
+    redirect(buildRedirectPath(listPath, "/loginpage/products", { error: "missing" }));
+  }
+
+  const copySlug = `${source.slug}-copy-${Date.now().toString(36)}`;
+  try {
+    await saveAdminProductOverride({
+      sourceProductId: null,
+      slug: copySlug,
+      title: source.title,
+      excerptHtml: source.excerptHtml,
+      contentHtml: source.contentHtml,
+      imageUrl: source.imageUrl,
+      regularPriceValue: source.regularPriceValue,
+      salePriceValue: source.salePriceValue,
+      visibility: source.visibility,
+      stockState: source.stockState
+    });
+  } catch (error) {
+    console.error("[duplicate-product]", error instanceof Error ? error.message : "Unknown database error");
+    redirect(buildRedirectPath(listPath, "/loginpage/products", { error: "copy" }));
+  }
+
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/shop/page/[page]", "page");
+  revalidatePath("/loginpage/products");
+  revalidatePath("/loginpage/products/page/[page]", "page");
+  revalidatePath("/sitemap.xml");
+  const editPath = `/loginpage/products/edit/${encodeURIComponent(copySlug)}`;
+  redirect(buildRedirectPath(page > 1 ? `${editPath}?page=${page}` : editPath, editPath, { copied: "1" }));
 }
 
 export async function saveProductCommonIntroAction(formData: FormData) {
@@ -252,25 +327,31 @@ export async function bulkUpdateProductAction(formData: FormData) {
   const productsBySlug = new Map(products.map((product) => [product.slug, product]));
   let updatedCount = 0;
 
-  for (const slug of selectedSlugs) {
-    const product = productsBySlug.get(slug);
-    if (!product) {
-      continue;
-    }
+  try {
+    for (const slug of selectedSlugs) {
+      const product = productsBySlug.get(slug);
+      if (!product) {
+        continue;
+      }
 
-    await saveAdminProductOverride({
-      sourceProductId: product.id,
-      slug: product.slug,
-      title: product.title,
-      excerptHtml: product.excerptHtml,
-      contentHtml: product.contentHtml,
-      imageUrl: product.imageUrl,
-      regularPriceValue: product.regularPriceValue,
-      salePriceValue: product.salePriceValue,
-      visibility: visibility || product.visibility,
-      stockState: stockState || product.stockState
-    });
-    updatedCount += 1;
+      await saveAdminProductOverride({
+        id: product.overrideId,
+        sourceProductId: product.sourceProductId,
+        slug: product.slug,
+        title: product.title,
+        excerptHtml: product.excerptHtml,
+        contentHtml: product.contentHtml,
+        imageUrl: product.imageUrl,
+        regularPriceValue: product.regularPriceValue,
+        salePriceValue: product.salePriceValue,
+        visibility: visibility || product.visibility,
+        stockState: stockState || product.stockState
+      });
+      updatedCount += 1;
+    }
+  } catch (error) {
+    console.error("[bulk-save-products]", error instanceof Error ? error.message : "Unknown database error");
+    redirect(buildRedirectPath(returnTo, "/loginpage/products", { bulkError: "save" }));
   }
 
   revalidatePath("/");

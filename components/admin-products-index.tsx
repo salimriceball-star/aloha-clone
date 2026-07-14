@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { bulkUpdateProductAction } from "@/app/admin/actions";
+import { bulkUpdateProductAction, duplicateProductAction } from "@/app/admin/actions";
 import { PaginationNav } from "@/components/pagination-nav";
 import { ProductPriceContent } from "@/components/product-price-content";
 import { getProducts } from "@/lib/site-data";
@@ -44,6 +44,7 @@ export async function AdminProductsIndex({
   searchParams: {
     bulkSaved?: string;
     bulkError?: string;
+    error?: string;
   };
 }) {
   const products = await getProducts({ includeHidden: true, includePrivate: true });
@@ -84,9 +85,13 @@ export async function AdminProductsIndex({
         ) : null}
         {searchParams.bulkError === "selection" ? <p className="warning-text">선택한 상품이 없습니다.</p> : null}
         {searchParams.bulkError === "action" ? <p className="warning-text">일괄 변경할 상태를 선택해 주세요.</p> : null}
+        {searchParams.bulkError === "save" ? <p className="warning-text">일괄 변경을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p> : null}
+        {searchParams.error === "copy" ? <p className="warning-text">상품 복사본을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p> : null}
+        {searchParams.error === "missing" ? <p className="warning-text">복사할 상품을 찾지 못했습니다.</p> : null}
 
         <form action={bulkUpdateProductAction} className="admin-form-grid">
           <input type="hidden" name="returnTo" value={currentListHref} />
+          <input type="hidden" name="currentPage" value={currentPage} />
 
           <div className="admin-bulk-toolbar">
             <label className="field">
@@ -132,6 +137,15 @@ export async function AdminProductsIndex({
                         <p className="plain-copy">{product.slug}</p>
                       </div>
                       <div className="admin-product-actions">
+                        <button
+                          type="submit"
+                          formAction={duplicateProductAction}
+                          name="slug"
+                          value={product.slug}
+                          className="action-button secondary-button"
+                        >
+                          복사
+                        </button>
                         <Link href={editHref} className="action-button secondary-button">
                           편집
                         </Link>

@@ -5,7 +5,7 @@ import { AdminProductsIndex } from "@/components/admin-products-index";
 export default async function LoginpageProductsPage({
   searchParams
 }: {
-  searchParams: Promise<{ bulkSaved?: string; bulkError?: string; edit?: string }>;
+  searchParams: Promise<{ bulkSaved?: string; bulkError?: string; error?: string; edit?: string }>;
 }) {
   const params = await searchParams;
 

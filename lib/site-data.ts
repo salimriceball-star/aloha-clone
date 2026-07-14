@@ -185,6 +185,8 @@ export type ProductReview = {
 
 export type ProductEntry = {
   id: number;
+  overrideId: number | null;
+  sourceProductId: number | null;
   date: string;
   slug: string;
   link: string;
@@ -712,6 +714,8 @@ async function mapSourceProduct(
 
   return {
     id: product.id,
+    overrideId: null,
+    sourceProductId: product.id,
     date: product.date,
     slug: normalizedSlug,
     link: product.link,
@@ -743,7 +747,7 @@ async function mapSourceProduct(
   };
 }
 
-function mergeProductOverride(product: ProductEntry, override?: AdminProductOverride) {
+function mergeProductOverride(product: ProductEntry, override?: AdminProductOverride): ProductEntry {
   const regularPriceValue = override?.regularPriceValue ?? product.regularPriceValue;
   const salePriceValue = override?.salePriceValue ?? product.salePriceValue;
   const displayValue = getDisplayPriceValue({
@@ -753,8 +757,13 @@ function mergeProductOverride(product: ProductEntry, override?: AdminProductOver
   });
   const mergedContentHtml = override?.contentHtml ?? product.contentHtml;
   const { bodyHtml } = splitProductContentSections(mergedContentHtml);
+  const slug = normalizeSlug(override?.slug ?? product.slug);
   return {
     ...product,
+    overrideId: override?.id ?? product.overrideId,
+    sourceProductId: override?.sourceProductId ?? product.sourceProductId,
+    slug,
+    link: `/product/${slug}`,
     title: override?.title ?? product.title,
     excerptHtml: override?.excerptHtml ?? product.excerptHtml,
     contentHtml: bodyHtml,
@@ -766,6 +775,49 @@ function mergeProductOverride(product: ProductEntry, override?: AdminProductOver
     salePriceValue,
     visibility: override?.visibility ?? product.visibility,
     stockState: override?.stockState ?? product.stockState
+  };
+}
+
+function mapStandaloneProduct(override: AdminProductOverride): ProductEntry {
+  const regularPriceValue = override.regularPriceValue;
+  const salePriceValue = override.salePriceValue;
+  const priceValue = getDisplayPriceValue({
+    priceValue: salePriceValue ?? regularPriceValue,
+    regularPriceValue,
+    salePriceValue
+  });
+  const excerptHtml = override.excerptHtml ?? "";
+  const { bodyHtml } = splitProductContentSections(override.contentHtml ?? "");
+  const slug = normalizeSlug(override.slug);
+
+  return {
+    id: -override.id,
+    overrideId: override.id,
+    sourceProductId: override.sourceProductId,
+    date: override.updatedAt ?? new Date(0).toISOString(),
+    slug,
+    link: `/product/${slug}`,
+    title: override.title ?? slug,
+    excerpt: stripHtml(excerptHtml),
+    excerptHtml,
+    contentHtml: bodyHtml,
+    priceText: priceValue !== null ? formatPrice(priceValue, "KRW") : null,
+    priceValue,
+    regularPriceValue,
+    salePriceValue,
+    imageUrl: override.imageUrl,
+    description: "",
+    ratingValue: null,
+    reviewCount: 0,
+    reviews: [],
+    visibility: override.visibility,
+    stockState: override.stockState,
+    publicSignals: {
+      hasRefundText: false,
+      hasGmailDeliveryText: false,
+      hasPdfOptionText: false,
+      hasBankTransferText: false
+    }
   };
 }
 
@@ -792,21 +844,27 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
   );
 });
 
-const getSourceProductBySlug = cache(async (slug: string) => {
-  const normalizedSlug = normalizeSlug(slug);
-  const { productsPayload, detailsBySlug, visibleSlugs } = await getSourceProductData();
-  const product = productsPayload.records.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
-  return product ? mapSourceProduct(product, detailsBySlug.get(normalizedSlug), visibleSlugs) : null;
-});
-
 export async function getProducts(options?: {
   includeHidden?: boolean;
   includePrivate?: boolean;
 }): Promise<ProductEntry[]> {
   const [products, overrides] = await Promise.all([getSourceProducts(), listAdminProductOverrides()]);
-  const overrideBySlug = new Map(overrides.map((override) => [override.slug, override]));
+  const overrideBySourceId = new Map(
+    overrides
+      .filter((override) => override.sourceProductId !== null)
+      .map((override) => [override.sourceProductId as number, override])
+  );
+  const overrideBySlug = new Map(overrides.map((override) => [normalizeSlug(override.slug), override]));
+  const sourceIds = new Set(products.map((product) => product.id));
 
-  const merged = products.map((product) => mergeProductOverride(product, overrideBySlug.get(product.slug)));
+  const merged = [
+    ...products.map((product) =>
+      mergeProductOverride(product, overrideBySourceId.get(product.id) ?? overrideBySlug.get(product.slug))
+    ),
+    ...overrides
+      .filter((override) => override.sourceProductId === null || !sourceIds.has(override.sourceProductId))
+      .map(mapStandaloneProduct)
+  ];
 
   return merged.filter((product) => {
     if (product.visibility === "private") {
@@ -826,9 +884,30 @@ export async function getProductBySlug(slug: string, options?: {
   includePrivate?: boolean;
 }) {
   const normalizedSlug = normalizeSlug(slug);
-  const [product, overrides] = await Promise.all([getSourceProductBySlug(normalizedSlug), listAdminProductOverrides()]);
-  if (!product) return null;
-  const merged = mergeProductOverride(product, overrides.find((override) => normalizeSlug(override.slug) === normalizedSlug));
+  const [{ productsPayload, detailsBySlug, visibleSlugs }, overrides] = await Promise.all([
+    getSourceProductData(),
+    listAdminProductOverrides()
+  ]);
+  const requestedOverride = overrides.find((override) => normalizeSlug(override.slug) === normalizedSlug);
+  const sourceRecord = requestedOverride?.sourceProductId
+    ? productsPayload.records.find((product) => product.id === requestedOverride.sourceProductId)
+    : productsPayload.records.find((product) => normalizeSlug(product.slug) === normalizedSlug);
+  const source = sourceRecord
+    ? await mapSourceProduct(
+        sourceRecord,
+        detailsBySlug.get(normalizeSlug(sourceRecord.slug)),
+        visibleSlugs
+      )
+    : null;
+  const linkedOverride = sourceRecord
+    ? overrides.find((override) => override.sourceProductId === sourceRecord.id) ?? requestedOverride
+    : requestedOverride;
+  const merged = source
+    ? mergeProductOverride(source, linkedOverride)
+    : requestedOverride
+      ? mapStandaloneProduct(requestedOverride)
+      : null;
+  if (!merged) return null;
   if (merged.visibility === "private" && !options?.includePrivate) return null;
   if (merged.visibility === "hidden" && !options?.includeHidden) return null;
   return merged;
@@ -837,10 +916,16 @@ export async function getProductBySlug(slug: string, options?: {
 export async function getProductAliasTarget(slug: string) {
   const normalizedSlug = normalizeSlug(slug);
   const productsPayload = await readJson<WpPaged<RawPost>>("products.json");
-  if (!productsPayload.records.some((product) => normalizeSlug(product.slug) === normalizedSlug)) return null;
   const overrides = await listAdminProductOverrides();
-  const override = overrides.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
-  return override?.visibility === "private" ? null : normalizedSlug;
+  const source = productsPayload.records.find((product) => normalizeSlug(product.slug) === normalizedSlug);
+  const override = source
+    ? overrides.find((candidate) => candidate.sourceProductId === source.id) ??
+      overrides.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug)
+    : overrides.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
+
+  if (!source && !override) return null;
+  if (override?.visibility === "private") return null;
+  return normalizeSlug(override?.slug ?? source?.slug ?? normalizedSlug);
 }
 
 const getDefaultProductCommonIntroHtml = cache(async () => {

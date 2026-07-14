@@ -1,4 +1,4 @@
-import { withAdminDb } from "@/lib/admin-db";
+import { withAdminDb, withRequiredAdminDb } from "@/lib/admin-db";
 import type { StoredOrder, StoredOrderItem } from "@/lib/purchase-flow";
 
 export type AdminPostRecord = {
@@ -19,6 +19,7 @@ export type AdminPostRecord = {
 };
 
 export type AdminProductOverride = {
+  id: number;
   sourceProductId: number | null;
   slug: string;
   title: string | null;
@@ -53,7 +54,9 @@ export type AdminOrderRecord = StoredOrder & {
 export type AdminPostInput = Omit<AdminPostRecord, "id" | "updatedAt"> & {
   id?: number | null;
 };
-type AdminProductInput = Omit<AdminProductOverride, "updatedAt">;
+type AdminProductInput = Omit<AdminProductOverride, "id" | "updatedAt"> & {
+  id?: number | null;
+};
 type AdminOrderInput = StoredOrder & {
   status?: AdminOrderRecord["status"];
 };
@@ -70,6 +73,23 @@ function toNumberOrNull(value: number | string | null | undefined) {
 
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function mapAdminProductOverride(row: Record<string, unknown>) {
+  return {
+    id: Number(row.id),
+    sourceProductId: row.source_product_id === null ? null : Number(row.source_product_id),
+    slug: String(row.slug),
+    title: row.title === null ? null : String(row.title),
+    excerptHtml: row.excerpt_html === null ? null : String(row.excerpt_html),
+    contentHtml: row.content_html === null ? null : String(row.content_html),
+    imageUrl: row.image_url === null ? null : String(row.image_url),
+    regularPriceValue: row.regular_price === null ? null : Number(row.regular_price),
+    salePriceValue: row.sale_price === null ? null : Number(row.sale_price),
+    visibility: row.visibility as AdminProductOverride["visibility"],
+    stockState: row.stock_state as AdminProductOverride["stockState"],
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+  } as AdminProductOverride;
 }
 
 function mapStoredOrderItem(row: Record<string, unknown>) {
@@ -266,32 +286,53 @@ export async function listAdminProductOverrides() {
   return withAdminDb(async (pool) => {
     const result = await pool.query(
       `
-        select source_product_id, slug, title, excerpt_html, content_html, image_url, regular_price, sale_price, visibility, stock_state, updated_at
+        select id, source_product_id, slug, title, excerpt_html, content_html, image_url, regular_price, sale_price, visibility, stock_state, updated_at
         from clone_products
         order by slug asc
       `
     );
 
-    return result.rows.map((row) => ({
-      sourceProductId: row.source_product_id === null ? null : Number(row.source_product_id),
-      slug: row.slug,
-      title: row.title,
-      excerptHtml: row.excerpt_html,
-      contentHtml: row.content_html,
-      imageUrl: row.image_url,
-      regularPriceValue: row.regular_price === null ? null : Number(row.regular_price),
-      salePriceValue: row.sale_price === null ? null : Number(row.sale_price),
-      visibility: row.visibility,
-      stockState: row.stock_state,
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
-    })) as AdminProductOverride[];
+    return result.rows.map(mapAdminProductOverride);
   }, [] as AdminProductOverride[]);
 }
 
 export async function saveAdminProductOverride(input: AdminProductInput) {
-  return withAdminDb(async (pool) => {
-    const result = await pool.query(
-      `
+  return withRequiredAdminDb(async (pool) => {
+    const values = [
+      input.sourceProductId,
+      input.slug,
+      normalizeNullableText(input.title),
+      normalizeNullableText(input.excerptHtml),
+      normalizeNullableText(input.contentHtml),
+      normalizeNullableText(input.imageUrl),
+      toNumberOrNull(input.regularPriceValue),
+      toNumberOrNull(input.salePriceValue),
+      input.visibility,
+      input.stockState
+    ];
+    const result = input.id
+      ? await pool.query(
+          `
+            update clone_products
+            set source_product_id = $1,
+                slug = $2,
+                title = $3,
+                excerpt_html = $4,
+                content_html = $5,
+                image_url = $6,
+                regular_price = $7,
+                sale_price = $8,
+                visibility = $9,
+                stock_state = $10,
+                updated_at = now()
+            where id = $11
+            returning id, source_product_id, slug, title, excerpt_html, content_html, image_url,
+                      regular_price, sale_price, visibility, stock_state, updated_at
+          `,
+          [...values, input.id]
+        )
+      : await pool.query(
+          `
         insert into clone_products (
           source_product_id, slug, title, excerpt_html, content_html, image_url,
           regular_price, sale_price, visibility, stock_state, updated_at
@@ -309,37 +350,16 @@ export async function saveAdminProductOverride(input: AdminProductInput) {
           visibility = excluded.visibility,
           stock_state = excluded.stock_state,
           updated_at = now()
-        returning source_product_id, slug, title, excerpt_html, content_html, image_url, regular_price, sale_price, visibility, stock_state, updated_at
+        returning id, source_product_id, slug, title, excerpt_html, content_html, image_url,
+                  regular_price, sale_price, visibility, stock_state, updated_at
       `,
-      [
-        input.sourceProductId,
-        input.slug,
-        normalizeNullableText(input.title),
-        normalizeNullableText(input.excerptHtml),
-        normalizeNullableText(input.contentHtml),
-        normalizeNullableText(input.imageUrl),
-        toNumberOrNull(input.regularPriceValue),
-        toNumberOrNull(input.salePriceValue),
-        input.visibility,
-        input.stockState
-      ]
-    );
+          values
+        );
 
     const row = result.rows[0];
-    return {
-      sourceProductId: row.source_product_id === null ? null : Number(row.source_product_id),
-      slug: row.slug,
-      title: row.title,
-      excerptHtml: row.excerpt_html,
-      contentHtml: row.content_html,
-      imageUrl: row.image_url,
-      regularPriceValue: row.regular_price === null ? null : Number(row.regular_price),
-      salePriceValue: row.sale_price === null ? null : Number(row.sale_price),
-      visibility: row.visibility,
-      stockState: row.stock_state,
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
-    } as AdminProductOverride;
-  }, null as AdminProductOverride | null);
+    if (!row) throw new Error("Product override was not saved.");
+    return mapAdminProductOverride(row);
+  });
 }
 
 export async function listAdminAssets() {

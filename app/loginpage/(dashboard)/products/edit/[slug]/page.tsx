@@ -15,7 +15,7 @@ export default async function LoginpageProductEditPage({
   searchParams
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ saved?: string; error?: string; page?: string }>;
+  searchParams: Promise<{ saved?: string; copied?: string; error?: string; page?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const product = await getProductBySlug(slug, { includeHidden: true, includePrivate: true });
@@ -27,10 +27,6 @@ export default async function LoginpageProductEditPage({
   const pageNumber = Number(query.page ?? "1");
   const normalizedPage = Number.isInteger(pageNumber) && pageNumber > 1 ? pageNumber : 1;
   const listHref = listHrefFor(normalizedPage);
-  const returnTo =
-    normalizedPage > 1
-      ? `/loginpage/products/edit/${encodeURIComponent(product.slug)}?page=${normalizedPage}`
-      : `/loginpage/products/edit/${encodeURIComponent(product.slug)}`;
 
   return (
     <section className="stack-grid">
@@ -41,6 +37,14 @@ export default async function LoginpageProductEditPage({
             <h1>{product.title}</h1>
           </div>
           <div className="admin-page-actions">
+            <Link
+              href={`/product/${encodeURIComponent(product.slug)}`}
+              className="action-button"
+              target="_blank"
+              rel="noreferrer"
+            >
+              공개 상품 보기
+            </Link>
             <Link href="/loginpage/products/common" className="action-button secondary-button">
               공통 도입부 편집
             </Link>
@@ -66,14 +70,27 @@ export default async function LoginpageProductEditPage({
         </p>
 
         {query.saved === "1" ? <p className="inline-note">상품 설정이 저장되었습니다.</p> : null}
-        {query.error === "1" ? <p className="warning-text">상품 식별자를 확인해 주세요.</p> : null}
+        {query.copied === "1" ? (
+          <p className="inline-note">독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 저장해 주세요.</p>
+        ) : null}
+        {query.error === "slug" ? <p className="warning-text">사용할 수 있는 상품 슬러그를 입력해 주세요.</p> : null}
+        {query.error === "save" ? (
+          <p className="warning-text">상품 변경 사항을 DB에 저장하지 못했습니다. 내용은 브라우저 임시 저장본에서 복원할 수 있습니다.</p>
+        ) : null}
       </section>
 
       <article className="panel admin-product-card admin-product-editor-panel">
         <form action={saveProductAction} className="admin-form-grid">
-          <input type="hidden" name="sourceProductId" value={product.id} />
-          <input type="hidden" name="slug" value={product.slug} />
-          <input type="hidden" name="returnTo" value={returnTo} />
+          <input type="hidden" name="overrideId" value={product.overrideId ?? ""} />
+          <input type="hidden" name="sourceProductId" value={product.sourceProductId ?? ""} />
+          <input type="hidden" name="originalSlug" value={product.slug} />
+          <input type="hidden" name="page" value={normalizedPage} />
+
+          <label className="field field-wide">
+            <span>주소 슬러그</span>
+            <input name="slug" defaultValue={product.slug} required />
+            <small className="editor-description">저장 후 공개 주소는 /product/입력한-슬러그 형식으로 바뀝니다.</small>
+          </label>
 
           <label className="field field-wide">
             <span>상품명 override</span>
@@ -120,8 +137,20 @@ export default async function LoginpageProductEditPage({
             <input name="imageUrl" defaultValue={product.imageUrl ?? ""} />
           </label>
 
-          <AdminHtmlEditor label="요약 override" name="excerptHtml" initialHtml={product.excerptHtml} minHeight={180} />
-          <AdminHtmlEditor label="본문 override" name="contentHtml" initialHtml={product.contentHtml} minHeight={360} />
+          <AdminHtmlEditor
+            label="요약 override"
+            name="excerptHtml"
+            initialHtml={product.excerptHtml}
+            minHeight={180}
+            draftStorageKey={`product:${product.overrideId ?? product.sourceProductId ?? product.slug}:excerpt`}
+          />
+          <AdminHtmlEditor
+            label="본문 override"
+            name="contentHtml"
+            initialHtml={product.contentHtml}
+            minHeight={360}
+            draftStorageKey={`product:${product.overrideId ?? product.sourceProductId ?? product.slug}:content`}
+          />
 
           <button type="submit" className="action-button">
             저장

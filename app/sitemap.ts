@@ -27,6 +27,7 @@ type RawPage = {
 };
 
 type RawProduct = {
+  id: number;
   date: string;
   slug: string;
   link: string;
@@ -119,19 +120,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const visibleBaseProductSlugs = new Set(visibilityPayload.visibleSlugs.map((slug) => normalizeSlug(slug)));
   const overrideBySlug = new Map(adminProductOverrides.map((override) => [normalizeSlug(override.slug), override]));
+  const overrideBySourceId = new Map(
+    adminProductOverrides
+      .filter((override) => override.sourceProductId !== null)
+      .map((override) => [override.sourceProductId as number, override])
+  );
+  const baseProductIds = new Set(productsPayload.records.map((product) => product.id));
   const baseProductSlugs = new Set(productsPayload.records.map((product) => normalizeSlug(product.slug)));
 
   const publicBaseProducts = productsPayload.records
     .map((product) => {
       const slug = normalizeSlug(product.slug);
-      const override = overrideBySlug.get(slug);
+      const override = overrideBySourceId.get(product.id) ?? overrideBySlug.get(slug);
       const visibility = override?.visibility ?? (visibleBaseProductSlugs.has(slug) ? "public" : "hidden");
-      return visibility === "public" ? `/product/${slug}` : null;
+      return visibility === "public" ? `/product/${normalizeSlug(override?.slug ?? slug)}` : null;
     })
     .filter((entry): entry is string => Boolean(entry));
 
   const publicOverrideProducts = adminProductOverrides
-    .filter((override) => override.visibility === "public" && !baseProductSlugs.has(normalizeSlug(override.slug)))
+    .filter(
+      (override) =>
+        override.visibility === "public" &&
+        (override.sourceProductId === null || !baseProductIds.has(override.sourceProductId)) &&
+        !baseProductSlugs.has(normalizeSlug(override.slug))
+    )
     .map((override) => `/product/${normalizeSlug(override.slug)}`);
 
   const publicProductEntries = [...publicBaseProducts, ...publicOverrideProducts];

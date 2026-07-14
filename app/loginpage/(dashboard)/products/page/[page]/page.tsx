@@ -7,7 +7,7 @@ export default async function LoginpageProductsPaginationPage({
   searchParams
 }: {
   params: Promise<{ page: string }>;
-  searchParams: Promise<{ bulkSaved?: string; bulkError?: string; edit?: string }>;
+  searchParams: Promise<{ bulkSaved?: string; bulkError?: string; error?: string; edit?: string }>;
 }) {
   const [{ page }, query] = await Promise.all([params, searchParams]);
   const pageNumber = Number(page);

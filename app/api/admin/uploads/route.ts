@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   try {
     const uploads = await uploadAdminFiles(files, String(formData.get("folder") ?? ""));
-    return NextResponse.json({ uploads });
+    return NextResponse.json({ provider: "cloudinary", uploads });
   } catch (error) {
     const message = error instanceof Error ? error.message : "upload-failed";
     return NextResponse.json({ error: message }, { status: 500 });

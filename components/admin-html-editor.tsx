@@ -9,6 +9,7 @@ type UploadedAsset = {
 };
 
 type UploadResponse = {
+  provider?: "cloudinary";
   uploads?: UploadedAsset[];
   error?: string;
 };
@@ -80,7 +81,19 @@ export function AdminHtmlEditor({
   const [isDirty, setIsDirty] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const hiddenInputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const htmlValueRef = useRef(initialHtml ?? "");
+  const isUploadingRef = useRef(false);
+
+  function commitHtml(nextHtml: string) {
+    htmlValueRef.current = nextHtml;
+    if (hiddenInputRef.current) {
+      hiddenInputRef.current.value = nextHtml;
+    }
+    setHtml(nextHtml);
+    setIsDirty(true);
+  }
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -110,11 +123,35 @@ export function AdminHtmlEditor({
     return () => window.clearTimeout(timeout);
   }, [draftStorageKey, html, isDirty]);
 
+  useEffect(() => {
+    const hiddenInput = hiddenInputRef.current;
+    const form = hiddenInput?.form;
+    if (!hiddenInput || !form) return;
+
+    const syncSubmittedValue = (event: FormDataEvent) => {
+      const latestHtml = mode === "visual" ? editorRef.current?.innerHTML ?? htmlValueRef.current : htmlTextareaRef.current?.value ?? htmlValueRef.current;
+      htmlValueRef.current = latestHtml;
+      hiddenInput.value = latestHtml;
+      event.formData.set(name, latestHtml);
+    };
+    const blockWhileUploading = (event: SubmitEvent) => {
+      if (!isUploadingRef.current) return;
+      event.preventDefault();
+      setStatus("이미지 업로드가 끝난 뒤 다시 저장해 주세요.");
+    };
+
+    form.addEventListener("formdata", syncSubmittedValue);
+    form.addEventListener("submit", blockWhileUploading);
+    return () => {
+      form.removeEventListener("formdata", syncSubmittedValue);
+      form.removeEventListener("submit", blockWhileUploading);
+    };
+  }, [mode, name]);
+
   const plainText = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 
   function syncFromEditor() {
-    setHtml(editorRef.current?.innerHTML ?? "");
-    setIsDirty(true);
+    commitHtml(editorRef.current?.innerHTML ?? "");
   }
 
   function focusVisualEditor() {
@@ -181,15 +218,15 @@ export function AdminHtmlEditor({
   function insertHtmlIntoTextarea(markup: string) {
     const textarea = htmlTextareaRef.current;
     if (!textarea) {
-      setHtml((current) => `${current}${markup}`);
+      commitHtml(`${htmlValueRef.current}${markup}`);
       return;
     }
 
-    const start = textarea.selectionStart ?? html.length;
-    const end = textarea.selectionEnd ?? html.length;
-    const nextValue = `${html.slice(0, start)}${markup}${html.slice(end)}`;
-    setHtml(nextValue);
-    setIsDirty(true);
+    const currentHtml = htmlValueRef.current;
+    const start = textarea.selectionStart ?? currentHtml.length;
+    const end = textarea.selectionEnd ?? currentHtml.length;
+    const nextValue = `${currentHtml.slice(0, start)}${markup}${currentHtml.slice(end)}`;
+    commitHtml(nextValue);
 
     requestAnimationFrame(() => {
       textarea.focus();
@@ -204,8 +241,9 @@ export function AdminHtmlEditor({
       return;
     }
 
+    isUploadingRef.current = true;
     setIsUploading(true);
-    setStatus(`${queue.length}개 업로드 중...`);
+    setStatus(`Cloudinary에 ${queue.length}개 업로드 중...`);
 
     try {
       const formData = new FormData();
@@ -219,7 +257,7 @@ export function AdminHtmlEditor({
       });
 
       const payload = (await response.json()) as UploadResponse;
-      if (!response.ok || !payload.uploads) {
+      if (!response.ok || payload.provider !== "cloudinary" || !payload.uploads) {
         throw new Error(payload.error ?? "업로드에 실패했습니다.");
       }
 
@@ -230,10 +268,13 @@ export function AdminHtmlEditor({
         insertHtmlAtSelection(markup);
       }
 
-      setStatus(`${payload.uploads.length}개 업로드 후 본문에 삽입했습니다.`);
+      setStatus(
+        `Cloudinary 업로드 완료 · ${payload.uploads.length}개를 본문에 삽입했습니다. 상품 저장 버튼을 눌러 변경을 확정해 주세요.`
+      );
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "업로드 중 오류가 발생했습니다.");
     } finally {
+      isUploadingRef.current = false;
       setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -256,9 +297,8 @@ export function AdminHtmlEditor({
 
   function restoreDraft() {
     if (savedDraft === null) return;
-    setHtml(savedDraft);
+    commitHtml(savedDraft);
     setSavedDraft(null);
-    setIsDirty(true);
     setStatus("브라우저 임시 저장본을 복원했습니다.");
   }
 
@@ -425,8 +465,7 @@ export function AdminHtmlEditor({
             className="editor-html-textarea"
             rows={14}
             value={html}
-              onChange={(event) => setHtml(event.currentTarget.value)}
-              onInput={() => setIsDirty(true)}
+            onChange={(event) => commitHtml(event.currentTarget.value)}
             onDragOver={(event) => {
               event.preventDefault();
               event.dataTransfer.dropEffect = "copy";
@@ -442,11 +481,11 @@ export function AdminHtmlEditor({
         )}
 
         <p className="editor-status">
-          {status ?? "이미지 여러 장을 드래그앤드롭하거나 파일 선택으로 현재 위치에 삽입할 수 있습니다."} · 텍스트 {plainText.length.toLocaleString("ko-KR")}자
+          {status ?? "이미지를 드래그앤드롭하거나 선택하면 Cloudinary에 업로드한 뒤 현재 위치에 삽입합니다."} · 텍스트 {plainText.length.toLocaleString("ko-KR")}자
         </p>
       </div>
 
-      <textarea name={name} value={html} readOnly hidden required={required} />
+      <textarea ref={hiddenInputRef} name={name} defaultValue={initialHtml ?? ""} readOnly hidden required={required} />
     </label>
   );
 }

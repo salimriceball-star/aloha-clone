@@ -2,9 +2,9 @@
 
 - 글 목록은 `/loginpage/posts`, 새 글은 `/loginpage/posts/new`, 한 글 편집은 `/loginpage/posts/edit/[id]`를 사용한다.
 - 상품 편집 화면은 `/loginpage/products/common`, `/loginpage/products/edit/[slug]` 기준으로 동일한 공용 에디터를 사용한다.
-- 에디터 컴포넌트: `/home/vboxuser/aloha_clone/components/admin-html-editor.tsx`
-- 업로드 API: `/home/vboxuser/aloha_clone/app/api/admin/uploads/route.ts`
-- Cloudinary 업로드 헬퍼: `/home/vboxuser/aloha_clone/lib/admin-uploads.ts`
+- 에디터 컴포넌트: `/home/ahn/aloha/components/admin-html-editor.tsx`
+- 업로드 API: `/home/ahn/aloha/app/api/admin/uploads/route.ts`
+- Cloudinary 업로드 헬퍼: `/home/ahn/aloha/lib/admin-uploads.ts`
 
 ## Editing Modes
 
@@ -21,6 +21,9 @@
 - 이미지/파일은 에디터 내부 `이미지 추가` 버튼 또는 드래그앤드롭으로 업로드 가능
 - 여러 파일을 한 번에 처리한다
 - 업로드 성공 시 현재 커서 위치에 자동 삽입된다
+- API는 Cloudinary SDK 업로드 성공 응답일 때만 `provider: cloudinary`를 반환하며, 편집기는 이 값을 확인한다
+- 상태 문구는 `Cloudinary 업로드 중` → `Cloudinary 업로드 완료·본문 삽입·상품 저장 필요` 순서로 표시한다
+- 업로드 중에는 폼 제출을 막고 완료 후 다시 저장하도록 알린다
 - 이미지: `<img>` 삽입
 - 비이미지 파일: 링크 `<a>` 삽입
 
@@ -30,6 +33,25 @@
 - 자산 이력 저장은 best-effort이며, DB unavailable 시 `clone_assets` 기록만 건너뛴다
 - 상품 목록 페이지는 한 번에 24개씩만 렌더링한다
 - 목록 페이지에서는 체크박스로 여러 상품을 선택해 공개범위와 판매 상태를 일괄 변경할 수 있다
+- 편집기 HTML은 React 렌더를 기다리지 않고 숨은 폼 필드에 즉시 동기화하며, 제출 직전에도 DOM의 최신 값을 다시 기록한다
+- 상품 DB 쓰기 실패는 성공으로 리디렉션하지 않고 오류를 표시한다. 읽기 오류도 서버 인스턴스 수명 전체를 비활성화하지 않고 15초 뒤 재시도한다
+
+## Product Workflow
+
+- 상품 목록의 `복사`는 본문, 요약, 이미지, 가격, 공개범위, 판매상태를 복제한 독립 DB 상품을 만들고 즉시 편집 화면으로 이동한다
+- 복사본은 원본 WordPress 상품 ID에 연결하지 않으므로 이후 변경이 원본에 영향을 주지 않는다
+- 상품 편집 화면에서 제목, 슬러그, 본문, 이미지 URL, 가격, 공개범위, 판매상태를 수정할 수 있다
+- 상단 `공개 상품 보기`는 현재 클라이언트 주소를 새 탭에서 연다
+- 원본 연결 상품의 슬러그를 바꾸면 예전 `/product/[slug]` 요청은 새 주소로 영구 이동하고 sitemap도 새 주소를 사용한다
+- `링크로만 접근`은 상점·sitemap에서 숨지만 정확한 URL로 접근 가능하고, `비공개`는 정확한 URL을 알아도 404다
+- 공개 상품 상세 조회는 전체 목록을 만들지 않고 요청한 원본 ID/슬러그 한 건만 병합해 복사·슬러그 기능이 페이지 로딩을 가중하지 않게 한다
+
+### 227 저장 장애 원인 (2026-07-14)
+
+- 최근 드래그앤드롭 이미지 2개는 Cloudinary `aloha-clone` 폴더에 정상 생성됐지만 `clone_products`에는 227 override가 생성되지 않았다
+- 기존 저장 액션이 DB helper의 실패 fallback을 확인하지 않고 항상 `saved=1`로 이동해 실제 실패를 성공처럼 보였다
+- DB helper는 한 번 오류가 나면 해당 서버 인스턴스에서 이후 DB 요청까지 영구 차단했다
+- 필수 상품 쓰기를 예외 전파 방식으로 분리하고, 실패 UI·짧은 읽기 재시도·제출 직전 HTML 동기화를 적용했다
 
 ## Post Workflow
 
