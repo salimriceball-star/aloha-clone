@@ -99,7 +99,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries = ["/", "/shop", "/column"];
 
   const publicAdminPosts = adminPosts.filter(
-    (post) => post.visibility === "public" && post.listedInArchive
+    (post) =>
+      post.publicationStatus === "published" &&
+      Date.parse(post.publishedAt) <= Date.now() &&
+      post.visibility === "public" &&
+      post.allowIndexing
   );
   const publicPostPaths = [
     ...postsPayload.records.map((post) => pathFromLink(post.link)),

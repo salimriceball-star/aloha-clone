@@ -56,9 +56,19 @@ async function ensureSchema(pool: Pool) {
       visibility text not null default 'public' check (visibility in ('public', 'hidden', 'private', 'password')),
       access_password text,
       listed_in_archive boolean not null default true,
+      publication_status text not null default 'published' check (publication_status in ('draft', 'published')),
+      listed_in_search boolean not null default true,
+      allow_indexing boolean not null default true,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
+
+    alter table if exists clone_posts
+      add column if not exists publication_status text not null default 'published';
+    alter table if exists clone_posts
+      add column if not exists listed_in_search boolean not null default true;
+    alter table if exists clone_posts
+      add column if not exists allow_indexing boolean not null default true;
 
     create table if not exists clone_products (
       id bigserial primary key,

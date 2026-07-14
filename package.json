@@ -20,6 +20,8 @@
     "enrich:products:guarded": "./scripts/run-guarded.sh npm run enrich:products",
     "export:protected": "tsx scripts/export-protected-posts.ts",
     "export:protected:guarded": "./scripts/run-guarded.sh npm run export:protected",
+    "sync:incremental": "tsx scripts/sync-source-incremental.ts",
+    "sync:incremental:guarded": "./scripts/run-guarded.sh npm run sync:incremental",
     "sync:assets": "tsx scripts/sync-assets.ts",
     "sync:assets:guarded": "./scripts/run-guarded.sh npm run sync:assets",
     "qa:browseros": "tsx scripts/browseros-visual-qa.ts",

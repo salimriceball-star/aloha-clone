@@ -1,10 +1,10 @@
 {
-  "capturedAt": "2026-04-06T17:32:58.453Z",
+  "capturedAt": "2026-07-14T07:19:04.640Z",
   "baseUrl": "https://aloha-yt.xyz/",
   "counts": {
     "posts": 16,
     "pages": 18,
-    "products": 178,
+    "products": 196,
     "categories": 1,
     "productCategories": 7,
     "comments": 0
@@ -18,5 +18,40 @@
     "categories.json",
     "product-categories.json",
     "comments.json"
-  ]
+  ],
+  "incrementalSync": {
+    "capturedAt": "2026-07-14T07:19:04.640Z",
+    "fixedTargets": [
+      "caution",
+      "appeal",
+      "terms"
+    ],
+    "productRange": {
+      "from": 209,
+      "to": 227
+    },
+    "mergedProductSlugs": [
+      "209",
+      "210",
+      "211",
+      "212",
+      "213",
+      "214",
+      "215",
+      "216",
+      "217",
+      "218",
+      "219",
+      "220",
+      "221",
+      "223",
+      "224",
+      "225",
+      "226",
+      "227"
+    ],
+    "missingProductSlugs": [
+      "222"
+    ]
+  }
 }

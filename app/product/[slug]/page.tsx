@@ -33,6 +33,11 @@ export async function generateMetadata({
       url: `/product/${product.slug}`,
       images: product.imageUrl ? [{ url: product.imageUrl }] : undefined,
       type: "article"
+    },
+    robots: {
+      index: product.visibility === "public",
+      follow: product.visibility === "public",
+      noarchive: product.visibility !== "public"
     }
   };
 }

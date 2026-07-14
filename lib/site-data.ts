@@ -2,7 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
 
-import { getAdminSetting, listAdminPosts, listAdminProductOverrides, type AdminPostRecord } from "@/lib/admin-store";
+import {
+  getAdminSetting,
+  listAdminPosts,
+  listAdminProductOverrides,
+  type AdminPostRecord,
+  type AdminProductOverride
+} from "@/lib/admin-store";
 import { resolveAssetUrl, rewriteHtmlAssetUrls } from "@/lib/asset-map";
 import { getDisplayPriceValue } from "@/lib/product-pricing";
 
@@ -164,6 +170,10 @@ export type PostEntry = {
   visibility: "public" | "password" | "hidden" | "private";
   accessPassword: string | null;
   listedInArchive: boolean;
+  publicationStatus: "draft" | "published";
+  listedInSearch: boolean;
+  allowIndexing: boolean;
+  updatedAt: string;
 };
 
 export type ProductReview = {
@@ -443,7 +453,11 @@ const getSourcePosts = cache(async (): Promise<PostEntry[]> => {
         sticky: post.sticky ?? false,
         visibility: "public" as const,
         accessPassword: null,
-        listedInArchive: true
+        listedInArchive: true,
+        publicationStatus: "published" as const,
+        listedInSearch: true,
+        allowIndexing: true,
+        updatedAt: post.date
       };
     })
   );
@@ -469,13 +483,14 @@ const getSourceProtectedPosts = cache(async (): Promise<PostEntry[]> => {
       const contentHtml = await rewriteHtmlAssetUrls(post.contentHtml);
       const primaryPath = pathFromLink(post.link);
       const directPath = normalizePath(post.directPath || `/${post.id}`);
+      const shortPath = normalizePath(`/${post.rawSlug || post.slug}`);
 
       return {
         id: post.id,
         date: post.date,
         slug: normalizeSlug(post.slug),
         legacyPath: primaryPath,
-        aliasPaths: directPath === primaryPath ? [] : [directPath],
+        aliasPaths: [...new Set([directPath, shortPath].filter((path) => path !== primaryPath))],
         pathSegments: pathToSegments(primaryPath),
         link: post.link,
         title: normalizeProtectedTitle(post.title),
@@ -491,7 +506,11 @@ const getSourceProtectedPosts = cache(async (): Promise<PostEntry[]> => {
         sticky: false,
         visibility: "password",
         accessPassword: post.password || null,
-        listedInArchive: post.listedInArchive
+        listedInArchive: post.listedInArchive,
+        publicationStatus: "published" as const,
+        listedInSearch: false,
+        allowIndexing: false,
+        updatedAt: post.date
       };
     })
   );
@@ -499,7 +518,7 @@ const getSourceProtectedPosts = cache(async (): Promise<PostEntry[]> => {
 
 function mapAdminPostToEntry(post: AdminPostRecord): PostEntry {
   return {
-    id: post.id,
+    id: -post.id,
     date: post.publishedAt,
     slug: post.slug,
     legacyPath: normalizePath(post.path),
@@ -516,11 +535,15 @@ function mapAdminPostToEntry(post: AdminPostRecord): PostEntry {
     sticky: false,
     visibility: post.visibility,
     accessPassword: post.visibility === "password" ? post.accessPassword : null,
-    listedInArchive: post.listedInArchive
+    listedInArchive: post.listedInArchive,
+    publicationStatus: post.publicationStatus,
+    listedInSearch: post.listedInSearch,
+    allowIndexing: post.allowIndexing,
+    updatedAt: post.updatedAt
   };
 }
 
-async function getMergedPosts() {
+const getMergedPosts = cache(async () => {
   const [sourcePosts, protectedPosts, adminPosts] = await Promise.all([
     getSourcePosts(),
     getSourceProtectedPosts(),
@@ -544,24 +567,55 @@ async function getMergedPosts() {
   }
 
   return merged;
+});
+
+function isPostLive(post: PostEntry) {
+  return post.publicationStatus === "published" && Date.parse(post.date) <= Date.now();
 }
 
 export async function getPosts() {
   const posts = await getMergedPosts();
   return sortPostsForHome(
-    posts.filter((post) => post.listedInArchive && post.visibility !== "hidden" && post.visibility !== "private")
+    posts.filter(
+      (post) =>
+        isPostLive(post) &&
+        post.listedInArchive &&
+        post.visibility !== "hidden" &&
+        post.visibility !== "private"
+    )
   );
+}
+
+export async function searchPosts(query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase("ko-KR");
+  if (!normalizedQuery) return [];
+  const posts = await getMergedPosts();
+  return sortPostsForHome(
+    posts.filter((post) => {
+      if (
+        !isPostLive(post) ||
+        !post.listedInSearch ||
+        post.visibility === "private" ||
+        post.visibility === "password"
+      ) {
+        return false;
+      }
+      return `${post.title} ${post.excerpt} ${stripHtml(post.contentHtml)}`
+        .toLocaleLowerCase("ko-KR")
+        .includes(normalizedQuery);
+    })
+  ).slice(0, 50);
 }
 
 export async function getProtectedPosts() {
   const posts = await getMergedPosts();
-  return posts.filter((post) => post.visibility === "password");
+  return posts.filter((post) => isPostLive(post) && post.visibility === "password");
 }
 
 export async function getPostById(id: number) {
   const posts = await getMergedPosts();
   const match = posts.find((post) => post.id === id) ?? null;
-  if (!match || match.visibility === "private") {
+  if (!match || !isPostLive(match) || match.visibility === "private") {
     return null;
   }
   return match;
@@ -571,7 +625,7 @@ export async function getPostBySlug(slug: string) {
   const posts = await getMergedPosts();
   const normalizedSlug = normalizeSlug(slug);
   const match = posts.find((post) => post.slug === normalizedSlug) ?? null;
-  if (!match || match.visibility === "private") {
+  if (!match || !isPostLive(match) || match.visibility === "private") {
     return null;
   }
   return match;
@@ -582,7 +636,7 @@ export async function getPostByPath(path: string) {
   const normalizedPath = normalizePath(path);
   const match =
     posts.find((post) => post.legacyPath === normalizedPath || post.aliasPaths.includes(normalizedPath)) ?? null;
-  if (!match || match.visibility === "private") {
+  if (!match || !isPostLive(match) || match.visibility === "private") {
     return null;
   }
   return match;
@@ -617,7 +671,105 @@ export const getPostComments = cache(async (postId: number): Promise<CommentNode
   return buildTree(0);
 });
 
-const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
+async function mapSourceProduct(
+  product: RawPost,
+  detail: RawProductDetail | undefined,
+  visibleSlugs: Set<string> | null
+): Promise<ProductEntry> {
+  const normalizedSlug = normalizeSlug(product.slug);
+  const schema = detail?.schema;
+  const primaryOffer = schema?.offers?.[0];
+  const numericPrice = Number(primaryOffer?.price);
+  const schemaReviews =
+    schema?.review?.map((review) => ({
+      author: decodeHtmlEntities(review.author?.name ?? ""),
+      date: review.datePublished ?? "",
+      body: decodeHtmlEntities(review.reviewBody ?? "").trim(),
+      rating: String(review.reviewRating?.ratingValue ?? "")
+    })) ?? [];
+  const extractedReviews = detail?.extractedReviews.map((review) => ({
+    author: decodeHtmlEntities(review.author),
+    date: review.date,
+    body: decodeHtmlEntities(review.body),
+    rating: review.rating
+  })) ?? [];
+  const reviews = extractedReviews.length >= schemaReviews.length ? extractedReviews : schemaReviews;
+  const rawReviewCount = schema?.aggregateRating?.reviewCount ?? reviews.length;
+  const reviewCount = Number(rawReviewCount) || reviews.length;
+  const decodedTitle = decodeHtmlEntities(product.title.rendered);
+  const stockState = deriveStockState(decodedTitle, primaryOffer?.availability);
+  const fullContentHtml = await rewriteHtmlAssetUrls(product.content.rendered);
+  const { bodyHtml } = splitProductContentSections(fullContentHtml);
+  const regularPriceValue = extractRegularPriceValue(schema?.description, product.excerpt.rendered, product.content.rendered);
+  const resolvedRegularPriceValue =
+    regularPriceValue !== null && Number.isFinite(numericPrice) && regularPriceValue > numericPrice ? regularPriceValue : null;
+  const salePriceValue = resolvedRegularPriceValue !== null && Number.isFinite(numericPrice) ? numericPrice : null;
+  const currentPriceValue = getDisplayPriceValue({
+    priceValue: Number.isFinite(numericPrice) ? numericPrice : null,
+    regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
+    salePriceValue
+  });
+
+  return {
+    id: product.id,
+    date: product.date,
+    slug: normalizedSlug,
+    link: product.link,
+    title: decodedTitle,
+    excerpt: stripHtml(product.excerpt.rendered),
+    excerptHtml: await rewriteHtmlAssetUrls(product.excerpt.rendered),
+    contentHtml: bodyHtml,
+    priceText: formatPrice(currentPriceValue, primaryOffer?.priceCurrency),
+    priceValue: currentPriceValue,
+    regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
+    salePriceValue,
+    imageUrl: await resolveAssetUrl(
+      Array.isArray(schema?.image)
+        ? schema.image[0] ?? extractFirstImageUrl(product.content.rendered)
+        : schema?.image ?? extractFirstImageUrl(product.content.rendered)
+    ),
+    description: decodeHtmlEntities(schema?.description ?? ""),
+    ratingValue: schema?.aggregateRating?.ratingValue ?? null,
+    reviewCount,
+    reviews,
+    visibility: visibleSlugs && !visibleSlugs.has(normalizedSlug) ? "hidden" : "public",
+    stockState,
+    publicSignals: detail?.publicSignals ?? {
+      hasRefundText: false,
+      hasGmailDeliveryText: false,
+      hasPdfOptionText: false,
+      hasBankTransferText: false
+    }
+  };
+}
+
+function mergeProductOverride(product: ProductEntry, override?: AdminProductOverride) {
+  const regularPriceValue = override?.regularPriceValue ?? product.regularPriceValue;
+  const salePriceValue = override?.salePriceValue ?? product.salePriceValue;
+  const displayValue = getDisplayPriceValue({
+    priceValue: product.priceValue,
+    regularPriceValue,
+    salePriceValue
+  });
+  const mergedContentHtml = override?.contentHtml ?? product.contentHtml;
+  const { bodyHtml } = splitProductContentSections(mergedContentHtml);
+  return {
+    ...product,
+    title: override?.title ?? product.title,
+    excerptHtml: override?.excerptHtml ?? product.excerptHtml,
+    contentHtml: bodyHtml,
+    excerpt: stripHtml(override?.excerptHtml ?? product.excerptHtml),
+    imageUrl: override?.imageUrl ?? product.imageUrl,
+    priceValue: displayValue,
+    priceText: displayValue !== null ? formatPrice(displayValue, "KRW") : product.priceText,
+    regularPriceValue,
+    salePriceValue,
+    visibility: override?.visibility ?? product.visibility,
+    stockState: override?.stockState ?? product.stockState
+  };
+}
+
+const getSourceProductData = cache(async () => {
   const [productsPayload, productDetails] = await Promise.all([
     readJson<WpPaged<RawPost>>("products.json"),
     readJson<RawProductDetail[]>("product-details.json")
@@ -627,74 +779,24 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
   const visibilityPayload = await getShopVisibility();
   const visibleSlugs = visibilityPayload ? new Set(visibilityPayload.visibleSlugs.map((slug) => normalizeSlug(slug))) : null;
 
-  return Promise.all(sortByDateDesc(productsPayload.records).map(async (product) => {
-    const normalizedSlug = normalizeSlug(product.slug);
-    const detail = detailsBySlug.get(normalizedSlug);
-    const schema = detail?.schema;
-    const primaryOffer = schema?.offers?.[0];
-    const numericPrice = Number(primaryOffer?.price);
-    const schemaReviews =
-      schema?.review?.map((review) => ({
-        author: decodeHtmlEntities(review.author?.name ?? ""),
-        date: review.datePublished ?? "",
-        body: decodeHtmlEntities(review.reviewBody ?? "").trim(),
-        rating: String(review.reviewRating?.ratingValue ?? "")
-      })) ?? [];
+  return { productsPayload, detailsBySlug, visibleSlugs };
+});
 
-    const extractedReviews = detail?.extractedReviews.map((review) => ({
-      author: decodeHtmlEntities(review.author),
-      date: review.date,
-      body: decodeHtmlEntities(review.body),
-      rating: review.rating
-    })) ?? [];
+const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
+  const { productsPayload, detailsBySlug, visibleSlugs } = await getSourceProductData();
 
-    const reviews = extractedReviews.length >= schemaReviews.length ? extractedReviews : schemaReviews;
-    const rawReviewCount = schema?.aggregateRating?.reviewCount ?? reviews.length;
-    const reviewCount = Number(rawReviewCount) || reviews.length;
-    const decodedTitle = decodeHtmlEntities(product.title.rendered);
-    const stockState = deriveStockState(decodedTitle, primaryOffer?.availability);
-    const fullContentHtml = await rewriteHtmlAssetUrls(product.content.rendered);
-    const { bodyHtml } = splitProductContentSections(fullContentHtml);
-    const regularPriceValue = extractRegularPriceValue(schema?.description, product.excerpt.rendered, product.content.rendered);
-    const resolvedRegularPriceValue =
-      regularPriceValue !== null && Number.isFinite(numericPrice) && regularPriceValue > numericPrice ? regularPriceValue : null;
-    const salePriceValue = resolvedRegularPriceValue !== null && Number.isFinite(numericPrice) ? numericPrice : null;
-    const currentPriceValue = getDisplayPriceValue({
-      priceValue: Number.isFinite(numericPrice) ? numericPrice : null,
-      regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
-      salePriceValue
-    });
+  return Promise.all(
+    sortByDateDesc(productsPayload.records).map((product) =>
+      mapSourceProduct(product, detailsBySlug.get(normalizeSlug(product.slug)), visibleSlugs)
+    )
+  );
+});
 
-    return {
-      id: product.id,
-      date: product.date,
-      slug: normalizedSlug,
-      link: product.link,
-      title: decodedTitle,
-      excerpt: stripHtml(product.excerpt.rendered),
-      excerptHtml: await rewriteHtmlAssetUrls(product.excerpt.rendered),
-      contentHtml: bodyHtml,
-      priceText: formatPrice(currentPriceValue, primaryOffer?.priceCurrency),
-      priceValue: currentPriceValue,
-      regularPriceValue: resolvedRegularPriceValue ?? (Number.isFinite(numericPrice) ? numericPrice : null),
-      salePriceValue,
-      imageUrl: await resolveAssetUrl(
-        Array.isArray(schema?.image) ? schema.image[0] ?? extractFirstImageUrl(product.content.rendered) : schema?.image ?? extractFirstImageUrl(product.content.rendered)
-      ),
-      description: decodeHtmlEntities(schema?.description ?? ""),
-      ratingValue: schema?.aggregateRating?.ratingValue ?? null,
-      reviewCount,
-      reviews,
-      visibility: visibleSlugs && !visibleSlugs.has(normalizedSlug) ? ("hidden" as const) : ("public" as const),
-      stockState,
-      publicSignals: detail?.publicSignals ?? {
-        hasRefundText: false,
-        hasGmailDeliveryText: false,
-        hasPdfOptionText: false,
-        hasBankTransferText: false
-      }
-    };
-  }));
+const getSourceProductBySlug = cache(async (slug: string) => {
+  const normalizedSlug = normalizeSlug(slug);
+  const { productsPayload, detailsBySlug, visibleSlugs } = await getSourceProductData();
+  const product = productsPayload.records.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
+  return product ? mapSourceProduct(product, detailsBySlug.get(normalizedSlug), visibleSlugs) : null;
 });
 
 export async function getProducts(options?: {
@@ -704,33 +806,7 @@ export async function getProducts(options?: {
   const [products, overrides] = await Promise.all([getSourceProducts(), listAdminProductOverrides()]);
   const overrideBySlug = new Map(overrides.map((override) => [override.slug, override]));
 
-  const merged = products.map((product) => {
-    const override = overrideBySlug.get(product.slug);
-    const regularPriceValue = override?.regularPriceValue ?? product.regularPriceValue;
-    const salePriceValue = override?.salePriceValue ?? product.salePriceValue;
-    const displayValue = getDisplayPriceValue({
-      priceValue: product.priceValue,
-      regularPriceValue,
-      salePriceValue
-    });
-    const mergedContentHtml = override?.contentHtml ?? product.contentHtml;
-    const { bodyHtml } = splitProductContentSections(mergedContentHtml);
-
-    return {
-      ...product,
-      title: override?.title ?? product.title,
-      excerptHtml: override?.excerptHtml ?? product.excerptHtml,
-      contentHtml: bodyHtml,
-      excerpt: stripHtml(override?.excerptHtml ?? product.excerptHtml),
-      imageUrl: override?.imageUrl ?? product.imageUrl,
-      priceValue: displayValue,
-      priceText: displayValue !== null ? formatPrice(displayValue, "KRW") : product.priceText,
-      regularPriceValue,
-      salePriceValue,
-      visibility: override?.visibility ?? product.visibility,
-      stockState: override?.stockState ?? product.stockState
-    };
-  });
+  const merged = products.map((product) => mergeProductOverride(product, overrideBySlug.get(product.slug)));
 
   return merged.filter((product) => {
     if (product.visibility === "private") {
@@ -749,9 +825,22 @@ export async function getProductBySlug(slug: string, options?: {
   includeHidden?: boolean;
   includePrivate?: boolean;
 }) {
-  const products = await getProducts(options);
   const normalizedSlug = normalizeSlug(slug);
-  return products.find((product) => product.slug === normalizedSlug) ?? null;
+  const [product, overrides] = await Promise.all([getSourceProductBySlug(normalizedSlug), listAdminProductOverrides()]);
+  if (!product) return null;
+  const merged = mergeProductOverride(product, overrides.find((override) => normalizeSlug(override.slug) === normalizedSlug));
+  if (merged.visibility === "private" && !options?.includePrivate) return null;
+  if (merged.visibility === "hidden" && !options?.includeHidden) return null;
+  return merged;
+}
+
+export async function getProductAliasTarget(slug: string) {
+  const normalizedSlug = normalizeSlug(slug);
+  const productsPayload = await readJson<WpPaged<RawPost>>("products.json");
+  if (!productsPayload.records.some((product) => normalizeSlug(product.slug) === normalizedSlug)) return null;
+  const overrides = await listAdminProductOverrides();
+  const override = overrides.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
+  return override?.visibility === "private" ? null : normalizedSlug;
 }
 
 const getDefaultProductCommonIntroHtml = cache(async () => {

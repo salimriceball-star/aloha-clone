@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { CommentThread } from "@/components/comment-thread";
 import { ProtectedPostGate } from "@/components/protected-post-gate";
 import { RichHtml } from "@/components/rich-html";
 import { htmlHasLeadingImage } from "@/lib/html-utils";
-import { getPageByPath, getPostByPath, getPostComments } from "@/lib/site-data";
+import { getPageByPath, getPostByPath, getPostComments, getProductAliasTarget } from "@/lib/site-data";
 
 export const revalidate = 60;
 
@@ -20,18 +20,25 @@ export async function generateMetadata({
   const path = `/${slug.join("/")}`;
   const post = await getPostByPath(path);
   if (post) {
+    const canIndex = post.visibility === "public" && post.allowIndexing;
+    const isPasswordProtected = post.visibility === "password";
     return {
-      title: post.title,
-      description: post.excerpt || post.title,
+      title: isPasswordProtected ? `보호된 글: ${post.title}` : post.title,
+      description: isPasswordProtected ? "비밀번호로 보호된 글입니다." : post.excerpt || post.title,
       alternates: {
         canonical: post.legacyPath
       },
       openGraph: {
-        title: post.title,
-        description: post.excerpt || post.title,
+        title: isPasswordProtected ? `보호된 글: ${post.title}` : post.title,
+        description: isPasswordProtected ? "비밀번호로 보호된 글입니다." : post.excerpt || post.title,
         url: post.legacyPath,
-        images: post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
+        images: !isPasswordProtected && post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
         type: "article"
+      },
+      robots: {
+        index: canIndex,
+        follow: canIndex,
+        noarchive: !canIndex
       }
     };
   }
@@ -108,7 +115,13 @@ export default async function CatchAllPage({
     if (post.visibility === "password") {
       return (
         <main className="shell">
-          <ProtectedPostGate post={post} />
+          <ProtectedPostGate post={{
+            id: post.id,
+            path,
+            title: post.title,
+            date: post.date,
+            categoryNames: post.categoryNames
+          }} />
         </main>
       );
     }
@@ -151,6 +164,12 @@ export default async function CatchAllPage({
   }
 
   const page = await getPageByPath(path);
+  if (!page && slug.length === 1) {
+    const productSlug = await getProductAliasTarget(slug[0]);
+    if (productSlug) {
+      permanentRedirect(`/product/${productSlug}`);
+    }
+  }
   if (!page) {
     notFound();
   }

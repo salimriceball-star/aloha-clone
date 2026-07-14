@@ -20,6 +20,7 @@ type AdminHtmlEditorProps = {
   description?: string;
   minHeight?: number;
   required?: boolean;
+  draftStorageKey?: string;
 };
 
 function escapeHtml(value: string) {
@@ -67,13 +68,16 @@ export function AdminHtmlEditor({
   initialHtml,
   description,
   minHeight = 260,
-  required = false
+  required = false,
+  draftStorageKey
 }: AdminHtmlEditorProps) {
   const inputId = useId();
   const [mode, setMode] = useState<"visual" | "html">("visual");
   const [html, setHtml] = useState(initialHtml ?? "");
   const [status, setStatus] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,8 +93,28 @@ export function AdminHtmlEditor({
     }
   }, [html, mode]);
 
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    const draft = window.localStorage.getItem(`aloha-editor:${draftStorageKey}`);
+    if (draft !== null && draft !== (initialHtml ?? "")) {
+      setSavedDraft(draft);
+    }
+  }, [draftStorageKey, initialHtml]);
+
+  useEffect(() => {
+    if (!draftStorageKey || !isDirty) return;
+    const timeout = window.setTimeout(() => {
+      window.localStorage.setItem(`aloha-editor:${draftStorageKey}`, html);
+      setStatus("이 브라우저에 임시 저장했습니다.");
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [draftStorageKey, html, isDirty]);
+
+  const plainText = html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+
   function syncFromEditor() {
     setHtml(editorRef.current?.innerHTML ?? "");
+    setIsDirty(true);
   }
 
   function focusVisualEditor() {
@@ -165,6 +189,7 @@ export function AdminHtmlEditor({
     const end = textarea.selectionEnd ?? html.length;
     const nextValue = `${html.slice(0, start)}${markup}${html.slice(end)}`;
     setHtml(nextValue);
+    setIsDirty(true);
 
     requestAnimationFrame(() => {
       textarea.focus();
@@ -229,6 +254,22 @@ export function AdminHtmlEditor({
     execCommand("createLink", value.trim());
   }
 
+  function restoreDraft() {
+    if (savedDraft === null) return;
+    setHtml(savedDraft);
+    setSavedDraft(null);
+    setIsDirty(true);
+    setStatus("브라우저 임시 저장본을 복원했습니다.");
+  }
+
+  function discardDraft() {
+    if (draftStorageKey) {
+      window.localStorage.removeItem(`aloha-editor:${draftStorageKey}`);
+    }
+    setSavedDraft(null);
+    setStatus("브라우저 임시 저장본을 삭제했습니다.");
+  }
+
   return (
     <label className="field field-wide admin-editor-field" htmlFor={inputId}>
       <span>{label}</span>
@@ -270,9 +311,23 @@ export function AdminHtmlEditor({
           </div>
         </div>
 
+        {savedDraft !== null ? (
+          <div className="editor-recovery-banner">
+            <span>이 브라우저에 서버 저장본과 다른 임시 내용이 있습니다.</span>
+            <button type="button" className="toolbar-button" onClick={restoreDraft}>복원</button>
+            <button type="button" className="toolbar-button" onClick={discardDraft}>삭제</button>
+          </div>
+        ) : null}
+
         {mode === "visual" ? (
           <>
             <div className="admin-editor-toolbar">
+              <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("undo")}>
+                실행 취소
+              </button>
+              <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("redo")}>
+                다시 실행
+              </button>
               <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("bold")}>
                 굵게
               </button>
@@ -321,6 +376,12 @@ export function AdminHtmlEditor({
               <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("unlink")}>
                 링크 해제
               </button>
+              <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("insertHorizontalRule")}>
+                구분선
+              </button>
+              <button type="button" className="toolbar-button" onMouseDown={(event) => event.preventDefault()} onClick={() => execCommand("removeFormat")}>
+                서식 지우기
+              </button>
             </div>
             <div
               ref={editorRef}
@@ -364,7 +425,8 @@ export function AdminHtmlEditor({
             className="editor-html-textarea"
             rows={14}
             value={html}
-            onChange={(event) => setHtml(event.currentTarget.value)}
+              onChange={(event) => setHtml(event.currentTarget.value)}
+              onInput={() => setIsDirty(true)}
             onDragOver={(event) => {
               event.preventDefault();
               event.dataTransfer.dropEffect = "copy";
@@ -380,7 +442,7 @@ export function AdminHtmlEditor({
         )}
 
         <p className="editor-status">
-          {status ?? "이미지 여러 장을 드래그앤드롭하거나 파일 선택으로 현재 위치에 삽입할 수 있습니다."}
+          {status ?? "이미지 여러 장을 드래그앤드롭하거나 파일 선택으로 현재 위치에 삽입할 수 있습니다."} · 텍스트 {plainText.length.toLocaleString("ko-KR")}자
         </p>
       </div>
 

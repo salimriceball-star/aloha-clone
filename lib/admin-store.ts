@@ -12,6 +12,10 @@ export type AdminPostRecord = {
   visibility: "public" | "hidden" | "private" | "password";
   accessPassword: string | null;
   listedInArchive: boolean;
+  publicationStatus: "draft" | "published";
+  listedInSearch: boolean;
+  allowIndexing: boolean;
+  updatedAt: string;
 };
 
 export type AdminProductOverride = {
@@ -46,7 +50,9 @@ export type AdminOrderRecord = StoredOrder & {
   status: "pending" | "paid" | "done" | "cancelled";
 };
 
-type AdminPostInput = Omit<AdminPostRecord, "id">;
+export type AdminPostInput = Omit<AdminPostRecord, "id" | "updatedAt"> & {
+  id?: number | null;
+};
 type AdminProductInput = Omit<AdminProductOverride, "updatedAt">;
 type AdminOrderInput = StoredOrder & {
   status?: AdminOrderRecord["status"];
@@ -111,7 +117,8 @@ export async function listAdminPosts() {
   return withAdminDb(async (pool) => {
     const result = await pool.query(
       `
-        select id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password, listed_in_archive
+        select id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+               listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
         from clone_posts
         order by published_at desc, id desc
       `
@@ -127,19 +134,94 @@ export async function listAdminPosts() {
       publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
       visibility: row.visibility,
       accessPassword: row.access_password,
-      listedInArchive: Boolean(row.listed_in_archive)
+      listedInArchive: Boolean(row.listed_in_archive),
+      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
+      listedInSearch: Boolean(row.listed_in_search),
+      allowIndexing: Boolean(row.allow_indexing),
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
     })) as AdminPostRecord[];
   }, [] as AdminPostRecord[]);
 }
 
-export async function saveAdminPost(input: AdminPostInput) {
+export async function getAdminPostById(id: number) {
   return withAdminDb(async (pool) => {
     const result = await pool.query(
       `
-        insert into clone_posts (
-          slug, path, title, excerpt_html, content_html, published_at, visibility, access_password, listed_in_archive, updated_at
+        select id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+               listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+        from clone_posts
+        where id = $1
+        limit 1
+      `,
+      [id]
+    );
+    const row = result.rows[0];
+    if (!row) return null as AdminPostRecord | null;
+    return {
+      id: Number(row.id),
+      slug: row.slug,
+      path: row.path,
+      title: row.title,
+      excerptHtml: row.excerpt_html,
+      contentHtml: row.content_html,
+      publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
+      visibility: row.visibility,
+      accessPassword: row.access_password,
+      listedInArchive: Boolean(row.listed_in_archive),
+      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
+      listedInSearch: Boolean(row.listed_in_search),
+      allowIndexing: Boolean(row.allow_indexing),
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+    } as AdminPostRecord;
+  }, null as AdminPostRecord | null);
+}
+
+export async function saveAdminPost(input: AdminPostInput) {
+  return withAdminDb(async (pool) => {
+    const values = [
+      input.slug,
+      input.path,
+      input.title,
+      input.excerptHtml,
+      input.contentHtml,
+      input.publishedAt,
+      input.visibility,
+      normalizeNullableText(input.accessPassword),
+      input.listedInArchive,
+      input.publicationStatus,
+      input.listedInSearch,
+      input.allowIndexing
+    ];
+    const result = input.id
+      ? await pool.query(
+          `
+            update clone_posts
+            set slug = $1,
+                path = $2,
+                title = $3,
+                excerpt_html = $4,
+                content_html = $5,
+                published_at = $6,
+                visibility = $7,
+                access_password = $8,
+                listed_in_archive = $9,
+                publication_status = $10,
+                listed_in_search = $11,
+                allow_indexing = $12,
+                updated_at = now()
+            where id = $13
+            returning id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+                      listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+          `,
+          [...values, input.id]
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+      : await pool.query(
+          `
+        insert into clone_posts (
+          slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+          listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
         on conflict (path) do update
         set
           slug = excluded.slug,
@@ -150,21 +232,15 @@ export async function saveAdminPost(input: AdminPostInput) {
           visibility = excluded.visibility,
           access_password = excluded.access_password,
           listed_in_archive = excluded.listed_in_archive,
+          publication_status = excluded.publication_status,
+          listed_in_search = excluded.listed_in_search,
+          allow_indexing = excluded.allow_indexing,
           updated_at = now()
-        returning id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password, listed_in_archive
+        returning id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+                  listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
       `,
-      [
-        input.slug,
-        input.path,
-        input.title,
-        input.excerptHtml,
-        input.contentHtml,
-        input.publishedAt,
-        input.visibility,
-        normalizeNullableText(input.accessPassword),
-        input.listedInArchive
-      ]
-    );
+          values
+        );
 
     const row = result.rows[0];
     return {
@@ -177,7 +253,11 @@ export async function saveAdminPost(input: AdminPostInput) {
       publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
       visibility: row.visibility,
       accessPassword: row.access_password,
-      listedInArchive: Boolean(row.listed_in_archive)
+      listedInArchive: Boolean(row.listed_in_archive),
+      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
+      listedInSearch: Boolean(row.listed_in_search),
+      allowIndexing: Boolean(row.allow_indexing),
+      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
     } as AdminPostRecord;
   }, null as AdminPostRecord | null);
 }

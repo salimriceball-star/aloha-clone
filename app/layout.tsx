@@ -56,6 +56,11 @@ export default async function RootLayout({
                 <Link href="/">자주 묻는 질문</Link>
                 <Link href="/shop">상점</Link>
                 <CartNavLink />
+                <form action="/search" className="site-search-form">
+                  <label className="sr-only" htmlFor="site-search-query">글 검색</label>
+                  <input id="site-search-query" name="q" type="search" placeholder="글 검색" />
+                  <button type="submit">검색</button>
+                </form>
               </nav>
             </div>
           </header>
