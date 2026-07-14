@@ -35,6 +35,8 @@ SUPABASE_DATABASE_URL=<Supavisor transaction pooler :6543 URI, 권장 이름>
 
 ## Domain cutover
 
+실제 DNS 값, TLS 검사 명령, 롤백 순서는 [aloha-yt.xyz → Vercel 안전 전환 실행서](./aloha-yt-vercel-cutover-runbook.md)를 따른다.
+
 1. Vercel project Domains에 apex `aloha-yt.xyz`와 필요한 `www` host를 추가한다.
 2. Vercel이 제시한 DNS A/CNAME 값을 DNS 제공자에 반영한다.
 3. 한 host를 primary로 선택하고 나머지는 primary로 영구 redirect한다.
@@ -67,6 +69,7 @@ npm run audit:seo -- https://aloha-yt.xyz
 
 ## Remaining external operations
 
+- 단계별 실행 기준: `docs/aloha-yt-vercel-cutover-runbook.md`
 - Vercel domain/DNS와 환경변수 설정
 - Google Search Console sitemap 제출 및 경고 모니터링
 - Supabase Free 정기 암호화 dump의 외부 저장 위치 결정

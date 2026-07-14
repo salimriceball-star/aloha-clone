@@ -30,6 +30,7 @@
 - `NEXT_PUBLIC_SITE_URL`: canonical/sitemap/robots/JSON-LD가 사용할 최종 HTTPS custom domain.
 - `GOOGLE_SITE_VERIFICATION`: Search Console meta verification을 사용할 때만 설정.
 - 도메인 전환과 SEO 운영 절차는 `/home/ahn/aloha/docs/vercel-cutover-seo.md`를 따른다.
+- 실제 `aloha-yt.xyz` DNS/TLS 전환 및 롤백은 `/home/ahn/aloha/docs/aloha-yt-vercel-cutover-runbook.md`를 따른다.
 
 ## Pre-Deploy Checks
 
