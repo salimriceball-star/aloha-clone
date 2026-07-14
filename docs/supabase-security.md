@@ -29,6 +29,8 @@
 ## Runtime Note
 
 - 두 앱의 서버 DB 연결은 Supavisor pooler를 거쳐 `postgres` 역할로 접근한다.
+- aloha clone은 `SUPABASE_DATABASE_URL`을 우선하고 기존 `SUPABASE_DIRECT_URL`을 fallback으로 사용한다.
+- Vercel Cron endpoint는 `CRON_SECRET` bearer 검증 후에만 실제 테이블 health query와 heartbeat 기록을 실행한다.
 - 현재 서버 역할은 `rolbypassrls = true` 이므로 서버측 direct SQL은 계속 동작한다.
 - public REST/Data API로는 더 이상 앱 테이블 접근이 되지 않아야 한다.
 

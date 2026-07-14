@@ -6,6 +6,7 @@ import { getServerEnv } from "@/lib/server-env";
 
 declare global {
   var __alohaPgPool__: Pool | undefined;
+  var __alohaPgConnectionString__: string | undefined;
   var __alohaPgSchemaReady__: boolean | undefined;
   var __alohaPgRetryAt__: number | undefined;
   var __alohaPgErrorLogged__: boolean | undefined;
@@ -13,23 +14,82 @@ declare global {
 
 dns.setDefaultResultOrder("ipv4first");
 
+const retryableConnectionCodes = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "ENOTFOUND",
+  "57P01",
+  "57P02",
+  "57P03"
+]);
+
+function getConnectionString() {
+  return getServerEnv("SUPABASE_DATABASE_URL") ?? getServerEnv("SUPABASE_DIRECT_URL");
+}
+
+function isRetryableConnectionError(error: unknown) {
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : null;
+  const code = typeof record?.code === "string" ? record.code : "";
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    retryableConnectionCodes.has(code) ||
+    code.startsWith("08") ||
+    /connection terminated|connection timeout|connect_timeout|socket hang up|client has already been connected|cannot connect now/i.test(
+      message
+    )
+  );
+}
+
+function recyclePool() {
+  const pool = globalThis.__alohaPgPool__;
+  globalThis.__alohaPgPool__ = undefined;
+  globalThis.__alohaPgConnectionString__ = undefined;
+  globalThis.__alohaPgSchemaReady__ = false;
+  if (pool) {
+    void pool.end().catch(() => undefined);
+  }
+}
+
 function getPool() {
   if (process.env.ALOHA_SKIP_ADMIN_DB === "1") {
     return null as Pool | null;
   }
 
-  const connectionString = getServerEnv("SUPABASE_DIRECT_URL");
+  const connectionString = getConnectionString();
   if (!connectionString) {
     return null as Pool | null;
   }
 
+  if (
+    globalThis.__alohaPgPool__ &&
+    globalThis.__alohaPgConnectionString__ !== connectionString
+  ) {
+    recyclePool();
+  }
+
   if (!globalThis.__alohaPgPool__) {
-    globalThis.__alohaPgPool__ = new Pool({
+    const pool = new Pool({
       connectionString,
-      max: 4,
+      max: 2,
       connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 10_000,
+      query_timeout: 8_000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
       ssl: { rejectUnauthorized: false }
     });
+    pool.on("error", (error) => {
+      console.error("[admin-db-pool]", error.message);
+      if (globalThis.__alohaPgPool__ === pool) {
+        recyclePool();
+      }
+    });
+    globalThis.__alohaPgPool__ = pool;
+    globalThis.__alohaPgConnectionString__ = connectionString;
   }
 
   return globalThis.__alohaPgPool__;
@@ -146,19 +206,46 @@ async function ensureSchema(pool: Pool) {
   globalThis.__alohaPgSchemaReady__ = true;
 }
 
+async function runWithConnectionRetry<T>(work: (pool: Pool) => Promise<T>, preflight: boolean) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const pool = getPool();
+    if (!pool) {
+      throw new Error("Admin database is not configured.");
+    }
+
+    try {
+      if (preflight) {
+        await pool.query("select 1");
+      }
+      await ensureSchema(pool);
+      return await work(pool);
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0 && isRetryableConnectionError(error)) {
+        recyclePool();
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+
 export async function withAdminDb<T>(work: (pool: Pool) => Promise<T>, fallback: T) {
   if ((globalThis.__alohaPgRetryAt__ ?? 0) > Date.now()) {
     return fallback;
   }
-  const pool = getPool();
-  if (!pool) {
+  if (!getConnectionString() || process.env.ALOHA_SKIP_ADMIN_DB === "1") {
     return fallback;
   }
 
   try {
-    await ensureSchema(pool);
-    const result = await work(pool);
+    const result = await runWithConnectionRetry(work, false);
     globalThis.__alohaPgRetryAt__ = undefined;
+    globalThis.__alohaPgErrorLogged__ = false;
     return result;
   } catch (error) {
     globalThis.__alohaPgRetryAt__ = Date.now() + 15_000;
@@ -171,12 +258,88 @@ export async function withAdminDb<T>(work: (pool: Pool) => Promise<T>, fallback:
 }
 
 export async function withRequiredAdminDb<T>(work: (pool: Pool) => Promise<T>) {
-  const pool = getPool();
-  if (!pool) {
-    throw new Error("Admin database is not configured.");
+  try {
+    const result = await runWithConnectionRetry(work, true);
+    globalThis.__alohaPgRetryAt__ = undefined;
+    globalThis.__alohaPgErrorLogged__ = false;
+    return result;
+  } catch (error) {
+    globalThis.__alohaPgRetryAt__ = Date.now() + 15_000;
+    throw error;
   }
-  await ensureSchema(pool);
-  const result = await work(pool);
-  globalThis.__alohaPgRetryAt__ = undefined;
-  return result;
+}
+
+export type AdminDbHealthStatus = {
+  available: boolean;
+  checkedAt: string;
+  lastCronSuccessAt: string | null;
+  connectionMode: "supavisor-transaction" | "supavisor-session" | "direct" | "unconfigured";
+};
+
+function getConnectionMode(): AdminDbHealthStatus["connectionMode"] {
+  const connectionString = getConnectionString();
+  if (!connectionString) return "unconfigured";
+
+  try {
+    const parsed = new URL(connectionString);
+    if (parsed.hostname.includes("pooler.supabase.com") && parsed.port === "6543") {
+      return "supavisor-transaction";
+    }
+    if (parsed.hostname.includes("pooler.supabase.com")) {
+      return "supavisor-session";
+    }
+  } catch {}
+
+  return "direct";
+}
+
+export async function recordAdminDbHeartbeat() {
+  const checkedAt = new Date().toISOString();
+  return withRequiredAdminDb(async (pool) => {
+    await pool.query("select id from clone_products limit 1");
+    await pool.query("select id from clone_posts limit 1");
+    await pool.query(
+      `
+        insert into clone_settings (key, value, updated_at)
+        values ('supabase_health_last_success', $1, now())
+        on conflict (key) do update
+        set value = excluded.value, updated_at = now()
+      `,
+      [checkedAt]
+    );
+
+    return {
+      ok: true as const,
+      checkedAt,
+      connectionMode: getConnectionMode()
+    };
+  });
+}
+
+export async function getAdminDbHealthStatus(): Promise<AdminDbHealthStatus> {
+  const checkedAt = new Date().toISOString();
+  const connectionMode = getConnectionMode();
+  const fallback: AdminDbHealthStatus = {
+    available: false,
+    checkedAt,
+    lastCronSuccessAt: null,
+    connectionMode
+  };
+
+  return withAdminDb(async (pool) => {
+    await pool.query("select 1");
+    const result = await pool.query(
+      "select value from clone_settings where key = 'supabase_health_last_success' limit 1"
+    );
+    const value = result.rows[0]?.value;
+    const lastCronSuccessAt =
+      typeof value === "string" && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null;
+
+    return {
+      available: true,
+      checkedAt,
+      lastCronSuccessAt,
+      connectionMode
+    };
+  }, fallback);
 }

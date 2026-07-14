@@ -24,6 +24,9 @@
 
 - 현재 프런트 배포는 `data/public-wp-export` 와 `data/assets/manifest.json` 을 읽는다.
 - Cloudinary/Supabase 자격증명은 수집/관리자 기능용이며, 실제 배포 연결 시 필요한 env만 별도로 입력한다.
+- `SUPABASE_DATABASE_URL`: Supavisor transaction pooler `:6543` URI. 기존 `SUPABASE_DIRECT_URL`도 fallback으로 지원한다.
+- `CRON_SECRET`: `/api/cron/supabase-health` 일일 호출 인증용 32-byte 이상 무작위 값.
+- Vercel Cron은 매일 `03:17 UTC`에 실행되며 운영 절차는 `/home/ahn/aloha/docs/supabase-availability.md`를 따른다.
 
 ## Pre-Deploy Checks
 
