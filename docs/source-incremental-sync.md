@@ -25,3 +25,13 @@ PRODUCT_FROM_SLUG=209 PRODUCT_TO_SLUG=227 npm run sync:incremental:guarded
 - 현재 체크아웃에는 `.local/cloudinary.env`가 없어 업로드를 실행하지 않음
 - 런타임은 기존 manifest 우선, 미등록 자산은 원본 HTTPS URL로 폴백하며 Next Image 최적화를 적용
 - Cloudinary 자격증명이 있는 운영 환경에서 `npm run sync:assets:guarded`를 실행하면 신규 자산만 증분 업로드 가능
+
+### Import Cloudinary Markdown
+
+```bash
+npm run import:cloudinary-env -- --source '/path/to/cloudinary-keys.md'
+```
+
+- Windows `C:\...` 인수는 `/mnt/c/...`로 변환한다. 해당 드라이브가 실제 마운트돼 있어야 한다.
+- `CLOUDINARY_URL` 또는 cloud name/API key/API secret 레이블을 Markdown·표·코드 형식에서 추출한다.
+- 값은 로그에 출력하지 않고 `/home/ahn/aloha/.local/cloudinary.env`에 원자 저장하며 권한을 `600`으로 고정한다.
