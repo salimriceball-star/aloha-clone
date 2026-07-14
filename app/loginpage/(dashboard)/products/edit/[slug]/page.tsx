@@ -71,7 +71,7 @@ export default async function LoginpageProductEditPage({
 
         {query.saved === "1" ? <p className="inline-note">상품 설정이 저장되었습니다.</p> : null}
         {query.copied === "1" ? (
-          <p className="inline-note">독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 저장해 주세요.</p>
+          <p className="inline-note">비공개 독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 공개범위를 선택해 저장해 주세요.</p>
         ) : null}
         {query.error === "slug" ? <p className="warning-text">사용할 수 있는 상품 슬러그를 입력해 주세요.</p> : null}
         {query.error === "save" ? (

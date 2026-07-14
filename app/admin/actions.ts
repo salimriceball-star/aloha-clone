@@ -269,7 +269,7 @@ export async function duplicateProductAction(formData: FormData) {
       imageUrl: source.imageUrl,
       regularPriceValue: source.regularPriceValue,
       salePriceValue: source.salePriceValue,
-      visibility: source.visibility,
+      visibility: "private",
       stockState: source.stockState
     });
   } catch (error) {
