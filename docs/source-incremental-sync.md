@@ -21,10 +21,10 @@ PRODUCT_FROM_SLUG=209 PRODUCT_TO_SLUG=227 npm run sync:incremental:guarded
 
 ## Assets
 
-- 새/변경 상품의 정규화 이미지 137개 중 81개는 현재 Cloudinary manifest에 없음
-- 현재 체크아웃에는 `.local/cloudinary.env`가 없어 업로드를 실행하지 않음
-- 런타임은 기존 manifest 우선, 미등록 자산은 원본 HTTPS URL로 폴백하며 Next Image 최적화를 적용
-- Cloudinary 자격증명이 있는 운영 환경에서 `npm run sync:assets:guarded`를 실행하면 신규 자산만 증분 업로드 가능
+- 새/변경 상품에서 발견된 미등록 정규화 이미지 `81`개를 2026-07-14 Cloudinary에 증분 업로드 완료
+- manifest 총계 `1107` → `1188`, 기존 외부 404 skip `2`건 유지, 신규 실패 없음
+- 런타임은 갱신된 manifest의 Cloudinary URL을 우선 사용하며 미등록 자산만 원본 HTTPS로 폴백
+- `npm run sync:assets:guarded` 재실행 결과 추가 업로드 없이 총계 `1188` 유지
 
 ### Import Cloudinary Markdown
 

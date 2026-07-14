@@ -18,6 +18,13 @@
 - product schema image
 - admin export protected/admin-only posts HTML
 
+## Current State
+
+- 2026-07-14 증분 동기화 완료: Cloudinary 자산 `1107` → `1188` (`81`개 추가)
+- 기존 외부 404 skip `2`건 유지, 신규 실패 `0`건
+- 신규 자산은 모두 `res.cloudinary.com` 응답 200, 로컬 원본/public ID/바이트 기록 검증 완료
+- 동일 명령 재실행 시 추가 업로드 없이 총계 `1188` 유지
+
 ## Runtime Wiring
 
 - `/home/vboxuser/aloha_clone/lib/asset-utils.ts`
