@@ -4,6 +4,7 @@ import path from "node:path";
 import type { MetadataRoute } from "next";
 
 import { listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
+import { getSiteUrl } from "@/lib/site-url";
 
 type WpRendered = {
   rendered: string;
@@ -15,6 +16,7 @@ type WpPaged<T> = {
 
 type RawPost = {
   date: string;
+  modified?: string;
   slug: string;
   link: string;
   title: WpRendered;
@@ -22,6 +24,7 @@ type RawPost = {
 
 type RawPage = {
   date: string;
+  modified?: string;
   slug: string;
   link: string;
 };
@@ -29,6 +32,7 @@ type RawPage = {
 type RawProduct = {
   id: number;
   date: string;
+  modified?: string;
   slug: string;
   link: string;
   title: WpRendered;
@@ -79,6 +83,13 @@ function pathFromLink(value: string) {
   }
 }
 
+function latestDate(values: Array<string | null | undefined>) {
+  const timestamps = values
+    .map((value) => (value ? Date.parse(value) : Number.NaN))
+    .filter(Number.isFinite);
+  return timestamps.length > 0 ? new Date(Math.max(...timestamps)) : undefined;
+}
+
 async function readJson<T>(filename: string): Promise<T> {
   const raw = await readFile(path.join(exportDir, filename), "utf8");
   return JSON.parse(raw) as T;
@@ -96,8 +107,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       listAdminProductOverrides()
     ]);
 
-  const baseUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? siteMeta.home);
-  const staticEntries = ["/", "/shop", "/column"];
+  const baseUrl = getSiteUrl(siteMeta.home);
 
   const publicAdminPosts = adminPosts.filter(
     (post) =>
@@ -106,17 +116,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       post.visibility === "public" &&
       post.allowIndexing
   );
-  const publicPostPaths = [
-    ...postsPayload.records.map((post) => pathFromLink(post.link)),
-    ...publicAdminPosts.map((post) => pathFromLink(post.path))
+  const publicPosts = [
+    ...postsPayload.records.map((post) => ({
+      path: pathFromLink(post.link),
+      lastModified: post.modified ?? post.date
+    })),
+    ...publicAdminPosts.map((post) => ({
+      path: pathFromLink(post.path),
+      lastModified: post.updatedAt
+    }))
   ];
+  const latestPostDate = latestDate(publicPosts.map((post) => post.lastModified));
 
-  const homePageCount = Math.max(1, Math.ceil(publicPostPaths.length / 10));
+  const homePageCount = Math.max(1, Math.ceil(publicPosts.length / 10));
   const paginatedEntries = Array.from({ length: Math.max(0, homePageCount - 1) }, (_, index) => `/page/${index + 2}`);
 
   const pageEntries = pagesPayload.records
     .filter((page) => !excludedPageSlugs.has(normalizeSlug(page.slug)))
-    .map((page) => pathFromLink(page.link));
+    .map((page) => ({ path: pathFromLink(page.link), lastModified: page.modified ?? page.date }));
 
   const visibleBaseProductSlugs = new Set(visibilityPayload.visibleSlugs.map((slug) => normalizeSlug(slug)));
   const overrideBySlug = new Map(adminProductOverrides.map((override) => [normalizeSlug(override.slug), override]));
@@ -133,9 +150,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const slug = normalizeSlug(product.slug);
       const override = overrideBySourceId.get(product.id) ?? overrideBySlug.get(slug);
       const visibility = override?.visibility ?? (visibleBaseProductSlugs.has(slug) ? "public" : "hidden");
-      return visibility === "public" ? `/product/${normalizeSlug(override?.slug ?? slug)}` : null;
+      return visibility === "public"
+        ? {
+            path: `/product/${normalizeSlug(override?.slug ?? slug)}`,
+            lastModified: override?.updatedAt ?? product.modified ?? product.date
+          }
+        : null;
     })
-    .filter((entry): entry is string => Boolean(entry));
+    .filter((entry): entry is { path: string; lastModified: string } => Boolean(entry));
 
   const publicOverrideProducts = adminProductOverrides
     .filter(
@@ -144,18 +166,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         (override.sourceProductId === null || !baseProductIds.has(override.sourceProductId)) &&
         !baseProductSlugs.has(normalizeSlug(override.slug))
     )
-    .map((override) => `/product/${normalizeSlug(override.slug)}`);
+    .map((override) => ({
+      path: `/product/${normalizeSlug(override.slug)}`,
+      lastModified: override.updatedAt ?? undefined
+    }));
 
   const publicProductEntries = [...publicBaseProducts, ...publicOverrideProducts];
+  const latestProductDate = latestDate(publicProductEntries.map((product) => product.lastModified));
   const shopPageCount = Math.max(1, Math.ceil(publicProductEntries.length / 16));
   paginatedEntries.push(
     ...Array.from({ length: Math.max(0, shopPageCount - 1) }, (_, index) => `/shop/page/${index + 2}`)
   );
 
-  const allEntries = [...new Set([...staticEntries, ...paginatedEntries, ...publicPostPaths, ...pageEntries, ...publicProductEntries])];
+  const entries = new Map<string, Date | undefined>();
+  const addEntry = (pathname: string, lastModified?: string | Date | null) => {
+    const parsed = lastModified instanceof Date ? lastModified : latestDate([lastModified]);
+    const existing = entries.get(pathname);
+    if (!entries.has(pathname) || (parsed && (!existing || parsed > existing))) {
+      entries.set(pathname, parsed);
+    }
+  };
 
-  return allEntries.map((pathname) => ({
+  addEntry("/", latestPostDate);
+  addEntry("/column", latestPostDate);
+  addEntry("/shop", latestProductDate);
+  paginatedEntries.forEach((pathname) => addEntry(pathname, pathname.startsWith("/shop/") ? latestProductDate : latestPostDate));
+  publicPosts.forEach((post) => addEntry(post.path, post.lastModified));
+  pageEntries.forEach((page) => addEntry(page.path, page.lastModified));
+  publicProductEntries.forEach((product) => addEntry(product.path, product.lastModified));
+
+  return [...entries.entries()].map(([pathname, lastModified]) => ({
     url: new URL(pathname, baseUrl).toString(),
+    lastModified,
     changeFrequency: pathname.startsWith("/product/") ? "daily" : "weekly",
     priority: pathname === "/" ? 1 : pathname.startsWith("/product/") ? 0.9 : 0.7
   }));

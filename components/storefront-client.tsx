@@ -484,7 +484,7 @@ function readMatchingOrder(orderId: string, orderKey: string | null) {
     return null as StoredOrder | null;
   }
 
-  if (orderKey && order.key !== orderKey) {
+  if (!orderKey || order.key !== orderKey) {
     return null as StoredOrder | null;
   }
 

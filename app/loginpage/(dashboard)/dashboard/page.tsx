@@ -1,5 +1,7 @@
 import { listAdminAssets, listAdminOrders, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
 import { getAdminDbHealthStatus } from "@/lib/admin-db";
+import { getSiteMeta } from "@/lib/site-data";
+import { getSiteUrlInfo } from "@/lib/site-url";
 
 function connectionModeLabel(mode: Awaited<ReturnType<typeof getAdminDbHealthStatus>>["connectionMode"]) {
   if (mode === "supavisor-transaction") return "Supavisor transaction pooler";
@@ -9,13 +11,15 @@ function connectionModeLabel(mode: Awaited<ReturnType<typeof getAdminDbHealthSta
 }
 
 export default async function LoginpageDashboardPage() {
-  const [posts, products, assets, orders, dbHealth] = await Promise.all([
+  const [posts, products, assets, orders, dbHealth, siteMeta] = await Promise.all([
     listAdminPosts(),
     listAdminProductOverrides(),
     listAdminAssets(),
     listAdminOrders(12),
-    getAdminDbHealthStatus()
+    getAdminDbHealthStatus(),
+    getSiteMeta()
   ]);
+  const siteUrlInfo = getSiteUrlInfo(siteMeta.home);
   const heartbeatAge = dbHealth.lastCronSuccessAt ? Date.now() - Date.parse(dbHealth.lastCronSuccessAt) : null;
   const heartbeatRecent = heartbeatAge !== null && heartbeatAge < 36 * 60 * 60 * 1_000;
 
@@ -59,6 +63,14 @@ export default async function LoginpageDashboardPage() {
         ) : (
           <p className="warning-text">아직 일일 DB 확인 성공 기록이 없습니다. CRON_SECRET과 Vercel Cron 설정을 확인해 주세요.</p>
         )}
+
+        <div className="admin-inline-flags">
+          <span>SEO 기준 주소 {siteUrlInfo.url.origin}</span>
+          <span>{siteUrlInfo.source === "explicit" ? "직접 설정" : siteUrlInfo.source === "vercel-production" ? "Vercel 운영 도메인" : "원본 fallback"}</span>
+        </div>
+        {siteUrlInfo.source === "source-fallback" ? (
+          <p className="warning-text">커스텀 도메인 연결 전에 NEXT_PUBLIC_SITE_URL을 최종 HTTPS 주소로 설정해 주세요.</p>
+        ) : null}
       </section>
     </section>
   );

@@ -6,8 +6,10 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CommentThread } from "@/components/comment-thread";
 import { ProtectedPostGate } from "@/components/protected-post-gate";
 import { RichHtml } from "@/components/rich-html";
+import { StructuredData } from "@/components/structured-data";
 import { htmlHasLeadingImage } from "@/lib/html-utils";
-import { getPageByPath, getPostByPath, getPostComments, getProductAliasTarget } from "@/lib/site-data";
+import { getPageByPath, getPostByPath, getPostComments, getProductAliasTarget, getSiteMeta } from "@/lib/site-data";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const revalidate = 60;
 
@@ -18,6 +20,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const path = `/${slug.join("/")}`;
+  if (path === "/my-account" || path.startsWith("/my-account/")) {
+    return {
+      title: path.endsWith("lost-password") ? "비밀번호 재설정" : "내 계정",
+      robots: { index: false, follow: false, noarchive: true }
+    };
+  }
   const post = await getPostByPath(path);
   if (post) {
     const canIndex = post.visibility === "public" && post.allowIndexing;
@@ -33,7 +41,9 @@ export async function generateMetadata({
         description: isPasswordProtected ? "비밀번호로 보호된 글입니다." : post.excerpt || post.title,
         url: post.legacyPath,
         images: !isPasswordProtected && post.coverImageUrl ? [{ url: post.coverImageUrl }] : undefined,
-        type: "article"
+        type: "article",
+        publishedTime: post.date,
+        modifiedTime: post.updatedAt
       },
       robots: {
         index: canIndex,
@@ -126,11 +136,41 @@ export default async function CatchAllPage({
       );
     }
 
+    const siteMeta = await getSiteMeta();
+    const siteUrl = getSiteUrl(siteMeta.home);
+    const postUrl = new URL(post.legacyPath, siteUrl).toString();
+
     const coverImageUrl =
       post.coverImageUrl && !htmlHasLeadingImage(post.contentHtml, post.coverImageUrl) ? post.coverImageUrl : null;
 
     return (
       <main className="shell">
+        <StructuredData
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "@id": `${postUrl}#article`,
+            headline: post.title,
+            description: post.excerpt || post.title,
+            datePublished: post.date,
+            dateModified: post.updatedAt,
+            mainEntityOfPage: postUrl,
+            image: post.coverImageUrl ? [post.coverImageUrl] : undefined,
+            author: {
+              "@type": "Organization",
+              name: siteMeta.name,
+              url: siteUrl.toString()
+            },
+            publisher: {
+              "@type": "Organization",
+              name: siteMeta.name,
+              url: siteUrl.toString(),
+              logo: siteMeta.site_icon_url
+                ? { "@type": "ImageObject", url: new URL(siteMeta.site_icon_url, siteUrl).toString() }
+                : undefined
+            }
+          }}
+        />
         <article className="article-shell article-shell-polished">
           <header className="article-header">
             <p className="meta-line">{post.categoryNames.join(" · ") || "글"}</p>

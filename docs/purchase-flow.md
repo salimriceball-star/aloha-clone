@@ -22,7 +22,8 @@
 
 - 상품은 숫자 slug 중심으로 다수 존재한다.
 - 품절/예약중 판단은 schema보다 상품 제목 prefix를 더 신뢰한다.
-- 주문완료 페이지는 현재 localStorage 기반 예시 흐름으로 구현되어 있다.
+- 주문은 Supabase에 우선 저장하고 localStorage는 동일 브라우저 복구용 보조 수단으로만 사용한다.
+- 주문완료 조회는 UUID 주문 ID와 144-bit 무작위 order key가 모두 일치해야 개인정보를 표시한다.
 
 ## Admin Needs
 

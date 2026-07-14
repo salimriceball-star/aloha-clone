@@ -4,26 +4,49 @@ import Link from "next/link";
 import "./globals.css";
 
 import { CartNavLink } from "@/components/storefront-client";
+import { StructuredData } from "@/components/structured-data";
 import { getSiteMeta } from "@/lib/site-data";
+import { getSiteUrl } from "@/lib/site-url";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteMeta = await getSiteMeta();
-  const metadataBase = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? siteMeta.home);
+  const metadataBase = getSiteUrl(siteMeta.home);
+  const description = siteMeta.description || `${siteMeta.name}의 글과 상품을 한곳에서 볼 수 있는 사이트`;
   return {
     metadataBase,
-    title: siteMeta.name,
-    description: siteMeta.description || `${siteMeta.name}의 글과 상품을 한곳에서 볼 수 있는 사이트`,
+    title: {
+      default: siteMeta.name,
+      template: `%s | ${siteMeta.name}`
+    },
+    description,
     alternates: {
-      canonical: "/"
+      canonical: "/",
+      types: {
+        "application/rss+xml": "/feed.xml"
+      }
     },
     openGraph: {
       title: siteMeta.name,
-      description: siteMeta.description || `${siteMeta.name}의 글과 상품을 한곳에서 볼 수 있는 사이트`,
+      description,
       url: "/",
       siteName: siteMeta.name,
       images: siteMeta.site_icon_url ? [{ url: siteMeta.site_icon_url }] : undefined,
       locale: "ko_KR",
       type: "website"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteMeta.name,
+      description,
+      images: siteMeta.site_icon_url ? [siteMeta.site_icon_url] : undefined
+    },
+    verification: process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : undefined,
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false
     }
   };
 }
@@ -34,10 +57,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const siteMeta = await getSiteMeta();
+  const siteUrl = getSiteUrl(siteMeta.home);
+  const logoUrl = new URL(siteMeta.site_icon_url || "/icon.png", siteUrl).toString();
 
   return (
     <html lang="ko">
       <body>
+        <StructuredData
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": new URL("/#organization", siteUrl).toString(),
+            name: siteMeta.name,
+            url: siteUrl.toString(),
+            logo: logoUrl
+          }}
+        />
         <div className="site-frame">
           <header className="site-header">
             <div className="site-header-inner">

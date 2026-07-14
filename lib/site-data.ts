@@ -405,7 +405,18 @@ export async function getSiteManifest() {
 }
 
 export async function getSiteMeta() {
-  return readJson<SiteMeta>("site-meta.json");
+  const meta = await readJson<SiteMeta>("site-meta.json");
+  const originalIconUrl = meta.site_icon_url;
+  const resolvedIconUrl = originalIconUrl ? await resolveAssetUrl(originalIconUrl) : null;
+  const sourceHost = new URL(meta.home).hostname;
+  const resolvedIconHost = resolvedIconUrl ? new URL(resolvedIconUrl, meta.home).hostname : null;
+  return {
+    ...meta,
+    site_icon_url:
+      resolvedIconUrl && resolvedIconHost !== sourceHost
+        ? resolvedIconUrl
+        : "/icon.png"
+  };
 }
 
 const getShopVisibility = cache(async (): Promise<ShopVisibilityPayload | null> => {

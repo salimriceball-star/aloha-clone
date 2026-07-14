@@ -14,7 +14,7 @@ export default async function OrderReceivedPage({
   const { orderId } = await params;
   const { key } = await searchParams;
   const order = await getAdminOrderById(orderId);
-  const initialOrder: StoredOrder | null = order && (!key || order.key === key) ? order : null;
+  const initialOrder: StoredOrder | null = order && key && order.key === key ? order : null;
 
   return (
     <main className="shell">

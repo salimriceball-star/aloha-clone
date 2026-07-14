@@ -4,9 +4,11 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProductPriceContent } from "@/components/product-price-content";
 import { ProductStatusBadges } from "@/components/product-status-badges";
+import { StructuredData } from "@/components/structured-data";
 import { ProductPurchaseActions } from "@/components/storefront-client";
 import { RichHtml } from "@/components/rich-html";
-import { getProductBySlug, getProductCommonIntroHtml } from "@/lib/site-data";
+import { getProductBySlug, getProductCommonIntroHtml, getSiteMeta } from "@/lib/site-data";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const revalidate = 60;
 
@@ -48,9 +50,10 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [product, productCommonIntroHtml] = await Promise.all([
+  const [product, productCommonIntroHtml, siteMeta] = await Promise.all([
     getProductBySlug(slug, { includeHidden: true }),
-    getProductCommonIntroHtml()
+    getProductCommonIntroHtml(),
+    getSiteMeta()
   ]);
 
   if (!product) {
@@ -59,6 +62,23 @@ export default async function ProductDetailPage({
   if (slug !== product.slug) {
     permanentRedirect(`/product/${encodeURIComponent(product.slug)}`);
   }
+  const siteUrl = getSiteUrl(siteMeta.home);
+  const productUrl = new URL(`/product/${encodeURIComponent(product.slug)}`, siteUrl).toString();
+  const availability = {
+    available: "https://schema.org/InStock",
+    reserved: "https://schema.org/PreOrder",
+    soldout: "https://schema.org/OutOfStock"
+  }[product.stockState];
+  const offer = product.priceValue !== null
+    ? {
+        "@type": "Offer",
+        url: productUrl,
+        priceCurrency: "KRW",
+        price: product.priceValue,
+        availability,
+        itemCondition: "https://schema.org/NewCondition"
+      }
+    : undefined;
 
   const purchaseProduct = {
     id: product.id,
@@ -74,6 +94,22 @@ export default async function ProductDetailPage({
 
   return (
     <main className="page-shell product-page">
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "@id": `${productUrl}#product`,
+          name: product.title,
+          description: product.excerpt || product.description || product.title,
+          image: product.imageUrl ? [product.imageUrl] : undefined,
+          sku: product.slug,
+          brand: {
+            "@type": "Brand",
+            name: siteMeta.name
+          },
+          offers: offer
+        }}
+      />
       <article className="product-hero">
         {product.imageUrl ? (
           <div className="product-gallery">

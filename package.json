@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "lint:guarded": "./scripts/run-guarded.sh npm run lint",
     "audit:site": "tsx scripts/site-audit.ts",
+    "audit:seo": "tsx scripts/seo-audit.ts",
     "export:public": "tsx scripts/export-public-wp.ts",
     "export:public:guarded": "./scripts/run-guarded.sh npm run export:public",
     "enrich:products": "tsx scripts/export-product-details.ts",

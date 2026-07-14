@@ -1,14 +1,16 @@
+import { randomBytes, randomUUID } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import { saveAdminOrder } from "@/lib/admin-store";
 import type { StoredOrder, StoredOrderItem } from "@/lib/purchase-flow";
 
 function buildOrderId() {
-  return `${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 90 + 10)}`;
+  return randomUUID();
 }
 
 function buildOrderKey() {
-  return `wc_order_${Math.random().toString(36).slice(2, 12)}`;
+  return `wc_order_${randomBytes(18).toString("base64url")}`;
 }
 
 function isStockState(value: unknown): value is "available" | "reserved" | "soldout" {

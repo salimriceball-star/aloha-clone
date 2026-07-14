@@ -27,6 +27,9 @@
 - `SUPABASE_DATABASE_URL`: Supavisor transaction pooler `:6543` URI. 기존 `SUPABASE_DIRECT_URL`도 fallback으로 지원한다.
 - `CRON_SECRET`: `/api/cron/supabase-health` 일일 호출 인증용 32-byte 이상 무작위 값.
 - Vercel Cron은 매일 `03:17 UTC`에 실행되며 운영 절차는 `/home/ahn/aloha/docs/supabase-availability.md`를 따른다.
+- `NEXT_PUBLIC_SITE_URL`: canonical/sitemap/robots/JSON-LD가 사용할 최종 HTTPS custom domain.
+- `GOOGLE_SITE_VERIFICATION`: Search Console meta verification을 사용할 때만 설정.
+- 도메인 전환과 SEO 운영 절차는 `/home/ahn/aloha/docs/vercel-cutover-seo.md`를 따른다.
 
 ## Pre-Deploy Checks
 
