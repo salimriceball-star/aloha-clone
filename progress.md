@@ -26,3 +26,5 @@
 - [x] canary patch QA·memory·commit·push
 - [x] verify 전용 CNAME 우선·TLS 미발급 진단 반영
 - [x] verify-CNAME patch QA·memory·commit·push
+- [x] apex 최신 rank-1 이중 A 권고와 롤백 반영
+- [x] apex dual-A patch QA·memory·commit·push

@@ -218,7 +218,7 @@ npm run vercel:cli -- domains verify aloha-yt.xyz
 ```text
 WWW_DNS_TYPE=Vercel verify가 표시한 www Recommended record type
 WWW_DNS_VALUE=Vercel verify가 표시한 www Recommended record value
-APEX_A_VALUE=Vercel verify가 표시한 apex Recommended A 값
+APEX_A_VALUES=Vercel verify가 rank 1로 표시한 apex Recommended A 값 전부
 ```
 
 인터넷 예제에 나온 IP/CNAME을 사용하지 않는다. 반드시 현재 프로젝트의 `inspect` 출력값을 복사한다.
@@ -265,9 +265,11 @@ Namecheap에서:
 
 1. `Advanced DNS → Host Records`
 2. Type `A Record`, Host `@`, Value `3.37.189.12` 행의 Edit 클릭
-3. Value를 6단계의 `APEX_A_VALUE`로 교체
-4. TTL `5 min`
-5. 저장
+3. Value를 6단계의 첫 번째 `APEX_A_VALUES`로 교체. 2026-07-16 최신 rank 1 기준 `216.198.79.1`
+4. TTL `5 min`으로 저장
+5. `Add New Record → A Record`, Host `@`, Value에 두 번째 rank 1 값 `64.29.17.1`, TTL `5 min`으로 추가
+
+최신 `domains verify`가 두 A를 rank 1 `records`로 제시하면 둘 다 넣는다. 이전 출력의 단일 `76.76.21.21`은 rank 2 호환값이므로 최신 rank 1보다 우선하지 않는다.
 
 절대 변경/삭제하지 않을 레코드:
 
@@ -286,7 +288,7 @@ dig +short A aloha-yt.xyz @8.8.8.8
 npm run cutover:check -- diagnose
 ```
 
-두 resolver가 Vercel의 `APEX_A_VALUE`를 보여주고 HTTPS 응답에 `x-vercel-id`가 나타날 때까지 Lightsail을 끄지 않는다.
+두 resolver가 Vercel의 `APEX_A_VALUES`를 모두 보여주고 HTTPS 응답에 `x-vercel-id`가 나타날 때까지 Lightsail을 끄지 않는다.
 
 ## 9. www를 apex로 영구 redirect
 
@@ -398,11 +400,10 @@ Vercel 공식 문제 해결: [Troubleshooting domains](https://vercel.com/docs/d
 
 먼저 Lightsail 인스턴스가 실행 중인지 확인한다. 그다음 Namecheap에서:
 
-1. `Advanced DNS → A Record → Host @` Edit
-2. Value를 `3.37.189.12`로 복원
-3. TTL `5 min`
-4. 저장
-5. 새로 추가한 `www` A/CNAME 삭제
+1. `Advanced DNS`에서 Vercel용 apex A 두 개 중 하나를 `3.37.189.12`로 복원
+2. 나머지 Vercel용 apex A를 삭제
+3. 복원한 Lightsail A의 TTL을 `5 min`으로 저장
+4. 새로 추가한 `www` A/CNAME 삭제
 
 아래를 반복 실행한다.
 
