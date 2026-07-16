@@ -1,210 +1,429 @@
-# aloha-yt.xyz → Vercel 안전 전환 실행서
+# aloha-yt.xyz → Vercel 복사·붙여넣기 전환 런북
 
-이 문서는 기존 Lightsail WordPress의 `aloha-yt.xyz`를 Vercel의 `aloha-clone` 프로젝트로 옮길 때 사용하는 순서형 체크리스트다. DNS 제공자가 표시하는 값과 Vercel `Settings → Domains`가 제시하는 값을 최종 기준으로 삼는다.
+이 문서는 `/home/ahn/aloha`에서 명령 블록을 위에서부터 하나씩 복사·붙여넣는 방식으로 사용한다. 각 검사에서 `FAIL`이 하나라도 나오면 바로 멈추고 다음 단계로 가지 않는다.
 
-## 1. SSH 키와 HTTPS 인증서 구분
+## 0. 터미널 준비
 
-- SSH 키/인증서는 Lightsail 서버 셸 접속에 사용한다. Vercel 운영 배포에는 일반적인 서버 SSH 접속 절차가 없다.
-- 브라우저의 `https://`는 TLS(통상 SSL이라고 부름) 인증서를 사용한다. SSH 키와 별개다.
-- Vercel은 프로젝트에 도메인을 추가하고 DNS 검증이 성공하면 Let’s Encrypt TLS 인증서를 자동 발급하고 갱신한다. 개인키를 내려받거나 Lightsail 인증서를 복사할 필요가 없다.
-- DNS가 Vercel에 도달하지 않거나 CAA가 Let’s Encrypt를 금지하면 인증서가 발급되지 않을 수 있다. 따라서 DNS부터 바꾸지 말고 반드시 Vercel에 도메인을 먼저 추가한다.
-
-공식 문서: [Vercel custom domain 설정](https://vercel.com/docs/domains/set-up-custom-domain), [Vercel SSL 인증서](https://vercel.com/docs/domains/working-with-ssl), [Vercel 도메인 문제 해결](https://vercel.com/docs/domains/troubleshooting)
-
-## 2. 2026-07-14 전환 전 DNS 기준점
-
-실행 직전에 다시 조회해야 한다. 현재 확인된 값은 다음과 같다.
-
-| 항목 | 현재 값 | 전환 원칙 |
-|---|---|---|
-| authoritative NS | `dns1.registrar-servers.com`, `dns2.registrar-servers.com` | 네임서버는 변경하지 않는 것을 권장 |
-| apex A | `3.37.189.12`, TTL 약 1800초 | Vercel이 화면에 제시한 A 값으로 교체 |
-| `www` | 레코드 없음 | Vercel이 제시한 CNAME 추가 |
-| AAAA | 없음 | 외부 DNS 사용 시 임의로 추가하지 않음 |
-| CAA | 없음 | 그대로 두면 Let’s Encrypt 허용. 향후 CAA를 만들면 `0 issue "letsencrypt.org"` 허용 필요 |
-| `_acme-challenge` TXT | 없음 | 충돌 없음 |
-| Google TXT | `google-site-verification=...` 존재 | 삭제하지 않음 |
-| MX/SPF | Namecheap email forwarding 레코드 존재 | 삭제하지 않음 |
-| 기존 TLS | Lightsail/Apache의 Let’s Encrypt, 2026-09-09 만료 | Vercel 인증서와 별개; 복사하지 않음 |
-
-네임서버를 Vercel로 통째로 바꾸면 MX·SPF·Google TXT를 새 DNS에 모두 복제해야 한다. 이번 전환은 그럴 이유가 없으므로 기존 DNS에서 A/CNAME만 수정한다.
-
-## 3. 24시간 전: 백업과 롤백 준비
-
-1. Lightsail 인스턴스 snapshot을 만든다.
-2. WordPress DB와 `wp-content/uploads` 백업이 열리는지 확인한다.
-3. Supabase DB dump를 별도 저장한다. Free 플랜은 자동 백업을 제공하지 않으므로 keepalive와 별개로 필요하다.
-4. 현재 DNS 화면을 캡처하고 apex A의 이전 값 `3.37.189.12`를 기록한다.
-5. Lightsail 인스턴스와 기존 인증서를 전환 후 최소 2주 유지한다.
-6. DNS apex A의 TTL을 제공자가 허용하는 60~300초로 낮춘다. 변경 전 TTL 약 1800초가 만료되도록 최소 30분 기다린다.
-
-Supabase 수동 백업 예시다. `SUPABASE_BACKUP_DATABASE_URL`에는 Dashboard `Connect`에서 복사한 direct connection 또는 session pooler `:5432` URI를 넣는다. 애플리케이션용 transaction pooler `:6543` URI와 구분한다.
+WSL/Ubuntu 터미널을 열고 아래 블록 전체를 붙여넣는다.
 
 ```bash
-umask 077
-BACKUP_DIR="$HOME/aloha-backups/$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$BACKUP_DIR"
-supabase db dump --db-url "$SUPABASE_BACKUP_DATABASE_URL" -f "$BACKUP_DIR/schema.sql"
-supabase db dump --db-url "$SUPABASE_BACKUP_DATABASE_URL" -f "$BACKUP_DIR/data.sql" --data-only --use-copy
-sha256sum "$BACKUP_DIR"/*.sql > "$BACKUP_DIR/SHA256SUMS"
-```
-
-백업 파일과 DB URL은 Git에 추가하지 않는다. 암호화된 외장 저장소/클라우드에 한 벌을 복사하고, 분기마다 임시 Supabase 프로젝트로 복원 시험을 한다. [Supabase 백업 공식 문서](https://supabase.com/docs/guides/platform/backups), [CLI 백업/복원](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
-
-## 4. Vercel 운영 환경변수 확인
-
-Vercel Dashboard → `aloha-clone` → `Settings` → `Environment Variables`에서 아래 값을 `Production`에 설정한다. 기존 값을 문서나 채팅에 복사하지 않는다.
-
-필수:
-
-- `NEXT_PUBLIC_SITE_URL=https://aloha-yt.xyz`
-- `ADMIN_PASSWORD`: DB 암호와 다른 관리자 전용 암호
-- `ADMIN_SESSION_SECRET`: `openssl rand -base64 48`로 생성한 독립 값
-- `SUPABASE_DATABASE_URL`: Supavisor transaction pooler 포트 `6543` URI
-- `CRON_SECRET`: `openssl rand -hex 32`로 생성
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET` 또는 완전한 `CLOUDINARY_URL`
-
-선택/기존 설정 유지:
-
-- `GOOGLE_SITE_VERIFICATION`: meta 방식 검증을 병행할 때 사용. DNS TXT 검증이 유지되면 필수는 아님
-- `CLOUDINARY_FOLDER`, `SITE_STORAGE_PREFIX`, `SOURCE_BASE_URL`
-
-`ADMIN_SESSION_SECRET`, DB URL, Cloudinary secret, `CRON_SECRET`에는 `NEXT_PUBLIC_` 접두사를 붙이지 않는다. 환경변수를 저장한 뒤 최신 `main`으로 Production 재배포하고 Deployment 상태가 `Ready`인지 확인한다.
-
-## 5. DNS 변경 전에 Vercel 배포 검증
-
-도메인을 건드리기 전에 임시 운영 주소에서 검사한다.
-
-```bash
-npm run audit:seo -- https://aloha-clone.vercel.app
-curl -I https://aloha-clone.vercel.app/
-curl -I https://aloha-clone.vercel.app/feed.xml
-curl -I https://aloha-clone.vercel.app/sitemap.xml
-```
-
-모두 통과한 뒤 다음도 직접 확인한다.
-
-1. `/loginpage` 로그인
-2. 관리자 대시보드의 Supabase 연결 상태
-3. 임시/테스트 상품 편집 저장 후 재진입 시 값 유지
-4. 드래그앤드롭 이미지 업로드의 Cloudinary 성공 메시지와 공개 글 이미지 표시
-5. 장바구니·checkout·주문 완료 페이지
-
-하나라도 실패하면 DNS를 변경하지 않는다.
-
-## 6. Vercel에 도메인을 먼저 등록
-
-1. Vercel Dashboard → `aloha-clone` → `Settings` → `Domains`를 연다.
-2. `aloha-yt.xyz`를 추가하고 Production 배포에 연결한다.
-3. `www.aloha-yt.xyz`도 추가한다.
-4. 기존 URL 보존을 위해 최종 주 도메인은 apex `aloha-yt.xyz`로 정한다. 다만 canary 검사 전에는 `www`를 apex로 redirect하지 않고 같은 Production 배포 alias로 둔다.
-5. 화면에 표시되는 apex A와 `www` CNAME 값을 별도로 기록한다. 인터넷 예시 IP를 복사하지 말고 이 프로젝트 화면의 값을 사용한다.
-6. 도메인이 다른 Vercel 계정에 등록됐다는 메시지가 나오면 Vercel이 제시하는 TXT 소유권 검증부터 완료한다.
-
-## 7. DNS 제공자에서 최소 레코드만 변경
-
-1. 사용자 트래픽이 없는 현재 `www`부터 Vercel 화면의 CNAME으로 추가한다.
-2. `www`가 `Valid Configuration`이 되고 `https://www.aloha-yt.xyz`에서 인증서와 새 사이트가 정상인지 확인한다. 실패하면 apex는 건드리지 않고 원인을 해결한다.
-3. canary가 통과하면 기존 apex `@` A 레코드 `3.37.189.12`를 Vercel 화면의 A 값으로 교체한다.
-4. apex 인증서와 새 사이트가 정상화된 뒤 Vercel에서 `www`를 `https://aloha-yt.xyz`로 영구 redirect한다.
-5. 충돌하는 기존 apex A 또는 `www` A/CNAME이 여러 개 남지 않았는지 확인한다.
-6. AAAA를 임의로 추가하지 않는다. 기존 AAAA가 생겼다면 Vercel 안내와 일치하지 않는 한 제거한다.
-7. 기존 MX, SPF TXT, Google verification TXT는 그대로 둔다.
-8. CAA가 여전히 없다면 추가 작업이 필요 없다. 다른 CAA가 존재한다면 `CAA 0 issue "letsencrypt.org"`를 함께 허용한다.
-9. `/.well-known` 또는 `_acme-challenge`를 다른 서버로 보내는 프록시·redirect는 만들지 않는다.
-
-## 8. DNS 전파와 Vercel TLS 발급 확인
-
-DNS 캐시 때문에 일부 방문자는 잠시 Lightsail, 일부는 Vercel을 볼 수 있다. 양쪽 서비스를 동시에 정상 상태로 유지한다.
-
-```bash
-dig +short A aloha-yt.xyz @1.1.1.1
-dig +short A aloha-yt.xyz @8.8.8.8
-dig +short CNAME www.aloha-yt.xyz @1.1.1.1
-dig +noall +answer aloha-yt.xyz CAA
-dig +noall +answer _acme-challenge.aloha-yt.xyz TXT
-```
-
-Vercel `Settings → Domains`에서 두 도메인이 `Valid Configuration`이고 인증서가 발급될 때까지 기다린다. DNS 검증 후 보통 수분이지만 전파에는 더 오래 걸릴 수 있다.
-
-TLS 확인:
-
-```bash
-curl -I http://aloha-yt.xyz/
-curl -I https://aloha-yt.xyz/
-curl -I https://www.aloha-yt.xyz/
-openssl s_client -connect aloha-yt.xyz:443 -servername aloha-yt.xyz </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+cd /home/ahn/aloha
+export DOMAIN=aloha-yt.xyz
+export WWW_DOMAIN=www.aloha-yt.xyz
+export VERCEL_PROJECT=aloha-clone
+export OLD_LIGHTSAIL_IP=3.37.189.12
+pwd
+git status --short
 ```
 
 합격 조건:
 
-- `http://aloha-yt.xyz`가 HTTPS로 redirect
-- `https://aloha-yt.xyz`가 인증서 경고 없이 200
-- `www`가 선택한 주 도메인으로 redirect
-- 인증서 SAN에 접속한 hostname 존재
-- 발급자·유효기간이 정상이며 Vercel Domains에 오류 없음
+- `pwd`가 `/home/ahn/aloha`
+- `git status --short` 다음에 아무 내용도 나오지 않음
 
-## 9. 운영 도메인 기능·SEO 검증
+파일 목록이 나오면 아직 커밋하지 않은 변경이 있다는 뜻이다. 덮어쓰지 말고 먼저 변경 내용을 확인한다.
+
+## 1. SSH와 HTTPS: 사용자가 준비할 인증서 없음
+
+- SSH 키는 기존 Lightsail 서버 셸 접속과 비상 롤백용이다. 삭제하지 않는다.
+- 브라우저 HTTPS는 TLS/SSL 인증서를 사용하며 SSH 키와 무관하다.
+- Vercel은 DNS 검증 후 Let’s Encrypt 인증서를 자동 발급·갱신한다. Lightsail 인증서나 개인키를 Vercel로 복사하지 않는다.
+- 인증서 발급 전 DNS부터 바꾸면 잠시 HTTPS 오류가 날 수 있다. 이 런북은 사용하지 않는 `www`에서 먼저 인증서를 시험한 후 apex를 전환한다.
+
+사용자가 이 단계에서 할 일은 없다. SSH 키는 Lightsail 종료가 확정될 때까지 보관한다.
+
+공식 문서: [Vercel custom domain](https://vercel.com/docs/domains/set-up-custom-domain), [Vercel SSL](https://vercel.com/docs/domains/working-with-ssl)
+
+## 2. 현재 상태 저장
+
+아래 명령을 붙여넣는다. 비밀값은 출력되지 않는다.
 
 ```bash
-npm run audit:seo -- https://aloha-yt.xyz
-curl -I https://aloha-yt.xyz/wp-sitemap.xml
-curl -I https://aloha-yt.xyz/sitemap_index.xml
-curl -I https://aloha-yt.xyz/feed
+cd /home/ahn/aloha
+npm run cutover:check -- diagnose | tee "$HOME/aloha-before-cutover.txt"
 ```
 
-SEO 감사가 모두 통과하고 세 legacy 주소가 각각 새 sitemap/feed로 영구 redirect되는지 확인한다. 홈, `/227`, 대표 글, 대표 상품, 관리자 저장, 이미지 업로드, checkout을 다시 확인한다.
+2026-07-16 기준 예상 상태:
+
+| 항목 | 예상 값 |
+|---|---|
+| apex A | `3.37.189.12` |
+| apex 서버 | `Apache`/WordPress |
+| `www` | 레코드/HTTPS 없음 |
+| AAAA·CAA·`_acme-challenge` | 없음 |
+| 기존 apex 인증서 | Let’s Encrypt, 2026-09-09 만료 |
+
+결과가 다르면 문서의 IP를 그대로 사용하지 말고 `$HOME/aloha-before-cutover.txt`에 저장된 실제 값을 롤백 기준으로 삼는다.
+
+## 3. 백업과 롤백 준비
+
+### 3-1. Lightsail snapshot
+
+1. AWS Console에 로그인한다.
+2. `Lightsail → Instances → 기존 aloha 인스턴스`를 연다.
+3. `Snapshots` 탭을 누른다.
+4. `Create snapshot`을 누른다.
+5. 이름을 `aloha-before-vercel-20260716`으로 입력한다.
+6. 상태가 `Available`이 될 때까지 기다린다.
+
+`Available` 전에는 다음 단계로 가지 않는다.
+
+### 3-2. Supabase public schema/data 백업
+
+Supabase Dashboard → 해당 프로젝트 → `Connect`에서 direct connection 또는 session pooler `:5432` URI를 복사한다. 애플리케이션용 transaction pooler `:6543` URI를 사용하면 스크립트가 중단한다.
+
+현재 WSL에는 PostgreSQL client가 기본 설치돼 있지 않다. 아래 두 줄을 먼저 붙여넣는다. `sudo` 암호를 물으면 WSL 사용자 암호를 입력한다.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y postgresql-client-16
+```
+
+아래 명령을 붙여넣고 URI 입력 요청이 나오면 붙여넣는다. 입력값은 화면에 표시되지 않는다.
+
+```bash
+cd /home/ahn/aloha
+npm run backup:supabase
+```
+
+합격 조건:
+
+- 마지막에 `백업 완료: /home/ahn/aloha-backups/...` 표시
+- schema/data의 checksum이 모두 `OK`
+
+이 프로젝트 데이터가 있는 `public` schema만 백업하며 Supabase가 관리하는 auth/storage 내부 schema는 포함하지 않는다. 표시된 폴더를 OneDrive 등 암호화된 외부 저장소에 한 벌 복사한다. Git 저장소에는 넣지 않는다. Supabase Free는 자동 일일 백업이 없으므로 이 백업은 생략하면 안 된다. [Supabase 백업](https://supabase.com/docs/guides/platform/backups)
+
+### 3-3. DNS TTL 낮추기
+
+현재 authoritative DNS는 Namecheap 계열 `registrar-servers.com`이다.
+
+1. Namecheap에 로그인한다.
+2. `Domain List → aloha-yt.xyz → Manage → Advanced DNS`를 연다.
+3. `Host Records`의 `A Record`, Host `@`, Value `3.37.189.12` 행을 찾는다.
+4. TTL을 `5 min`으로 변경하고 저장한다. Value는 아직 바꾸지 않는다.
+5. 기존 TTL 약 1800초가 빠질 때까지 30분 기다린다.
+
+30분 후 아래를 붙여넣는다.
+
+```bash
+dig +noall +answer aloha-yt.xyz A
+```
+
+TTL 숫자가 300 이하로 내려오면 합격이다. Namecheap이 `Automatic`만 허용하면 현재 TTL이 만료된 뒤 진행하되, 롤백 전파가 더 느릴 수 있음을 감수한다.
+
+## 4. Vercel Production 환경변수 설정과 재배포
+
+수동으로 `vercel env add`를 반복하지 않는다. 이미 존재하는 변수 때문에 다음 오류가 나기 때문이다.
+
+```text
+A variable with the name NEXT_PUBLIC_SITE_URL already exists ...
+```
+
+아래 스크립트는 다음 규칙으로 동작한다.
+
+- `NEXT_PUBLIC_SITE_URL`은 Production에 `https://aloha-yt.xyz`로 강제 갱신
+- 기존 Production 비밀값은 유지
+- 없는 `ADMIN_SESSION_SECRET`, `CRON_SECRET`은 자동 생성
+- `.local/cloudinary.env`의 `CLOUDINARY_URL`에서 cloud name/API key를 값 노출 없이 추출
+- 없는 관리자 암호·Supabase URL만 숨김 입력 요청
+- 설정 완료 후 새 Production 배포 실행
+
+먼저 변경 없는 예행연습을 붙여넣는다.
+
+```bash
+cd /home/ahn/aloha
+npm run vercel:configure-env -- --dry-run
+```
+
+이어서 실제 설정과 배포를 붙여넣는다.
+
+```bash
+cd /home/ahn/aloha
+npm run vercel:configure-env -- --deploy
+```
+
+첫 실행 시:
+
+1. `.local`에 전용 Node 20+Vercel CLI를 한 번 설치한다. Git에는 포함되지 않는다.
+2. 브라우저 로그인 화면이 뜨면 현재 Vercel 계정으로 승인한다.
+3. 프로젝트 연결 질문이 나오면 팀 `salimriceball-5026s-projects`를 선택한다.
+4. 기존 프로젝트 `aloha-clone`을 선택한다. 새 프로젝트를 만들지 않는다.
+5. `SUPABASE_DATABASE_URL` 입력 요청이 나오면 Supabase `Connect → Transaction pooler`, 포트 `6543` URI를 붙여넣는다.
+6. `ADMIN_PASSWORD` 입력 요청이 나오면 DB 암호와 다른 관리자 암호를 두 번 붙여넣는다.
+7. Cloudinary 값이 로컬 파일에 없을 때만 Cloudinary Dashboard `API Keys` 값을 붙여넣는다.
+
+합격 조건:
+
+- `설정 완료: NEXT_PUBLIC_SITE_URL`
+- 기존 비밀은 `기존 값 유지`로 표시
+- 마지막 Vercel 배포 상태가 `Production`/`Ready`
+
+환경변수 변경은 이전 배포에 소급되지 않으므로 반드시 `--deploy`까지 실행한다. 스크립트는 공식 `vercel env add ... production --force` 방식을 사용한다. [Vercel env CLI](https://vercel.com/docs/cli/env)
+
+스크립트 대신 `NEXT_PUBLIC_SITE_URL` 오류 하나만 수동 복구해야 할 때는 아래 두 줄을 붙여넣는다. 이 값은 비밀이 아니므로 shell history에 남아도 된다.
+
+```bash
+printf '%s' 'https://aloha-yt.xyz' | npm run vercel:cli -- env add NEXT_PUBLIC_SITE_URL production --force
+npm run vercel:cli -- deploy --prod --yes
+```
+
+## 5. DNS 변경 전 Vercel 배포 합격 판정
+
+아래 한 줄을 붙여넣는다.
+
+```bash
+cd /home/ahn/aloha
+npm run cutover:check -- baseline
+```
+
+이 검사는 다음을 자동 확인한다.
+
+- `https://aloha-clone.vercel.app/`, `/feed.xml`, `/sitemap.xml` 200
+- Vercel 응답 헤더
+- 접속은 Vercel 임시 주소로 하되 canonical·robots·sitemap origin은 `https://aloha-yt.xyz`
+- Organization/Article/Product JSON-LD와 noindex 정책
+
+모든 항목이 `PASS`이고 마지막이 `모든 검사 통과`여야 한다.
+
+2026-07-16 사전 검사에서는 배포 URL의 canonical이 아직 `aloha-clone.vercel.app`이라 실패했다. 4단계의 환경변수 갱신·재배포 후 이 검사가 통과해야 DNS를 변경할 수 있다.
+
+브라우저에서 아래 주소도 직접 확인한다.
+
+- `https://aloha-clone.vercel.app/loginpage`: 로그인
+- `https://aloha-clone.vercel.app/loginpage/dashboard`: Supabase 연결 정상
+- `https://aloha-clone.vercel.app/loginpage/products`: 상품 목록/복사 버튼
+- 테스트 상품 편집: 저장 후 재진입해 변경 유지
+- 이미지 업로드: Cloudinary 성공 메시지와 공개 페이지 이미지 표시
+
+하나라도 실패하면 여기서 멈춘다.
+
+## 6. Vercel에 apex와 www 등록
+
+아래 명령을 순서대로 붙여넣는다.
+
+```bash
+cd /home/ahn/aloha
+npm run vercel:cli -- domains add www.aloha-yt.xyz aloha-clone
+npm run vercel:cli -- domains add aloha-yt.xyz aloha-clone
+npm run vercel:cli -- domains inspect www.aloha-yt.xyz
+npm run vercel:cli -- domains inspect aloha-yt.xyz
+```
+
+`already exists`가 나오면 삭제하지 말고 이어지는 `domains inspect` 결과를 사용한다. 다른 Vercel 계정 소유라고 나오면 표시된 TXT verification 레코드를 Namecheap `Advanced DNS`에 먼저 추가하고 `inspect`를 다시 실행한다.
+
+두 `inspect` 결과에서 요구하는 값을 메모한다.
+
+```text
+WWW_CNAME_VALUE=Vercel inspect가 표시한 www CNAME 값
+APEX_A_VALUE=Vercel inspect가 표시한 apex A 값
+```
+
+인터넷 예제에 나온 IP/CNAME을 사용하지 않는다. 반드시 현재 프로젝트의 `inspect` 출력값을 복사한다.
+
+Vercel Dashboard를 선호하면 `aloha-clone → Settings → Domains → Add Domain`에서 같은 두 도메인을 추가한다. 이 시점에는 `www`를 apex로 redirect하지 말고 Production alias로 둔다.
+
+## 7. www canary를 먼저 연결
+
+현재 `www`는 사용하지 않으므로 실제 방문자에게 영향 없이 Vercel DNS·TLS를 시험할 수 있다.
+
+Namecheap에서:
+
+1. `Domain List → aloha-yt.xyz → Manage → Advanced DNS`
+2. `Host Records → Add New Record`
+3. Type `CNAME Record`
+4. Host `www`
+5. Value에 6단계의 `WWW_CNAME_VALUE`를 붙여넣기
+6. TTL `Automatic` 또는 `5 min`
+7. 저장
+
+저장 후 아래 명령을 반복 실행한다.
+
+```bash
+cd /home/ahn/aloha
+npm run cutover:check -- canary
+```
+
+DNS 전파 중에는 실패할 수 있다. 5분 후 다시 실행한다. 합격 조건:
+
+- `www.aloha-yt.xyz CNAME=...` PASS
+- TLS 인증서 PASS
+- `https://www.aloha-yt.xyz/ → 200` PASS
+- `www가 Vercel 응답` PASS
+
+`www`가 301/308이면 Vercel에서 apex redirect가 너무 일찍 설정된 것이다. Domain 설정에서 임시로 같은 Production deployment alias로 되돌린 뒤 canary를 다시 검사한다.
+
+## 8. apex를 Lightsail에서 Vercel로 전환
+
+7단계가 모두 통과한 경우에만 진행한다.
+
+Namecheap에서:
+
+1. `Advanced DNS → Host Records`
+2. Type `A Record`, Host `@`, Value `3.37.189.12` 행의 Edit 클릭
+3. Value를 6단계의 `APEX_A_VALUE`로 교체
+4. TTL `5 min`
+5. 저장
+
+절대 변경/삭제하지 않을 레코드:
+
+- 모든 MX (`eforward*.registrar-servers.com`)
+- SPF TXT (`v=spf1 include:spf.efwd.registrar-servers.com ~all`)
+- `google-site-verification=...` TXT
+- NS (`dns1/2.registrar-servers.com`)
+
+AAAA는 새로 만들지 않는다. CAA가 여전히 없다면 만들 필요가 없다. 다른 CAA가 생겼다면 Let’s Encrypt 허용용 `CAA 0 issue "letsencrypt.org"`도 추가한다.
+
+전파 상태를 확인한다.
+
+```bash
+dig +short A aloha-yt.xyz @1.1.1.1
+dig +short A aloha-yt.xyz @8.8.8.8
+npm run cutover:check -- diagnose
+```
+
+두 resolver가 Vercel의 `APEX_A_VALUE`를 보여주고 HTTPS 응답에 `x-vercel-id`가 나타날 때까지 Lightsail을 끄지 않는다.
+
+## 9. www를 apex로 영구 redirect
+
+apex HTTPS가 정상화된 뒤에만 실행한다.
+
+1. Vercel Dashboard → `aloha-clone → Settings → Domains`
+2. `www.aloha-yt.xyz` 행의 Edit 클릭
+3. `Redirect to Another Domain` 선택
+4. 대상 `aloha-yt.xyz`
+5. Permanent redirect 선택 후 저장
+
+저장 후 아래를 붙여넣는다.
+
+```bash
+cd /home/ahn/aloha
+npm run cutover:check -- production
+```
+
+이 검사는 apex DNS/TLS/Vercel 헤더, `www` 301/308, RSS, sitemap, canonical, JSON-LD를 모두 확인한다. 마지막이 `모든 검사 통과`가 아니면 Lightsail을 종료하지 않는다.
 
 ## 10. Google Search Console
 
-1. 기존 `google-site-verification` DNS TXT를 삭제하지 않는다.
-2. Search Console의 `aloha-yt.xyz` Domain property에서 소유권이 유지되는지 확인한다.
-3. `https://aloha-yt.xyz/sitemap.xml`을 제출한다.
-4. 홈·대표 글·대표 상품을 URL 검사 → 실제 URL 테스트한다.
-5. Page indexing, HTTPS, Core Web Vitals, Product snippets 경고를 주 1회 확인한다.
-6. 같은 도메인과 permalink를 유지하므로 Change of Address는 사용하지 않는다.
+1. `https://search.google.com/search-console`에 로그인한다.
+2. 왼쪽 위 속성 선택에서 `aloha-yt.xyz` Domain property를 선택한다.
+3. 소유권 오류가 없는지 확인한다. 기존 DNS `google-site-verification` TXT를 삭제하지 않았으므로 유지돼야 한다.
+4. 왼쪽 `Sitemaps` 클릭
+5. `Add a new sitemap` 입력란에 `sitemap.xml` 붙여넣기
+6. `Submit` 클릭
+7. 상태가 `Success`인지 확인
+8. 상단 URL 검사에 아래 세 주소를 하나씩 붙여넣고 `TEST LIVE URL` 실행
 
-사이트맵은 발견을 돕는 힌트이며 색인·순위를 보장하지 않는다. [Google sitemap 공식 문서](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
+```text
+https://aloha-yt.xyz/
+https://aloha-yt.xyz/227
+https://aloha-yt.xyz/shop
+```
 
-## 11. 장애 알림과 정기 운영
+같은 도메인과 permalink를 유지하는 hosting-only 이전이므로 `Change of Address`는 사용하지 않는다. 사이트맵은 발견 힌트이며 검색 순위를 보장하지 않는다. [Google sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)
 
-외부 uptime 서비스에 다음을 5분 간격 HTTPS 모니터로 등록한다.
+## 11. Supabase cron 수동 확인
 
-- `https://aloha-yt.xyz/`: 200
-- `https://aloha-yt.xyz/sitemap.xml`: 200
-- `https://aloha-yt.xyz/robots.txt`: 200
-- 대표 공개 상품 URL: 200
+터미널에 아래 블록을 붙여넣는다. secret은 숨김 입력되고 명령 기록에 남지 않는다.
 
-알림은 최소 이메일과 메신저 두 경로로 보낸다. `/api/cron/supabase-health`의 secret을 외부 uptime 서비스에 맡기지 말고 Vercel Function/Cron 로그와 `/loginpage/dashboard`의 최근 성공 시각을 매일 확인한다.
+```bash
+read -r -s -p 'Vercel CRON_SECRET을 붙여넣으세요: ' CRON_SECRET; echo
+curl -i --max-time 30 \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  https://aloha-yt.xyz/api/cron/supabase-health
+unset CRON_SECRET
+```
 
-- 매주: Vercel 오류·Search Console·Dependabot 확인
-- 매월: Supabase schema/data dump와 checksum 생성, 복사본 확인
-- 분기: 임시 DB 복원 시험
+합격 조건:
+
+- HTTP `200`
+- JSON에 `"ok":true`
+- `/loginpage/dashboard`의 최근 Cron 성공 시각 갱신
+
+`401`은 secret 불일치, `503`은 DB 연결 실패다. Vercel `Logs`에서 `supabase-health`를 검색한다.
+
+## 12. 외부 장애 알림 등록
+
+사용 중인 uptime 서비스에서 HTTP(S) monitor 네 개를 만든다.
+
+| 이름 | URL | 기대값 | 주기 |
+|---|---|---|---|
+| aloha-home | `https://aloha-yt.xyz/` | 200 | 5분 |
+| aloha-sitemap | `https://aloha-yt.xyz/sitemap.xml` | 200 | 15분 |
+| aloha-robots | `https://aloha-yt.xyz/robots.txt` | 200 | 15분 |
+| aloha-product | 대표 공개 상품 URL | 200 | 5분 |
+
+알림 연락처는 이메일과 메신저 두 개를 등록한다. 외부 서비스에 `CRON_SECRET`을 주지 않는다. DB cron은 Vercel 로그와 관리자 대시보드로 확인한다.
+
+정기 작업:
+
+- 매주: Vercel 오류, Search Console, Dependabot 확인
+- 매월: `npm run backup:supabase` 실행 후 외부 복사
+- 분기: 새 임시 Supabase 프로젝트로 복원 시험
 - 연 1회: 관리자·DB·Cloudinary secret 교체
-- 안정화 2주 후: TTL을 1800~3600초로 복원하고 Lightsail 종료 여부 결정
 
-## 12. HTTPS가 안 될 때의 순서
+## 13. HTTPS 오류 진단
 
-1. Vercel 프로젝트에 정확히 두 도메인이 추가됐는지 확인한다.
-2. `dig` 결과가 Vercel Domains 화면의 값과 같은지 확인한다.
-3. 오래된/중복 A, 잘못된 `www` 레코드, AAAA가 없는지 확인한다.
-4. CAA가 있다면 Let’s Encrypt가 허용됐는지 확인한다.
-5. 기존 `_acme-challenge` TXT/CNAME이 다른 인증기관을 고정하지 않는지 확인한다.
-6. Cloudflare 등을 사용한다면 인증서 발급 중 proxy를 잠시 DNS-only로 두고 재검증한다.
-7. DNSSEC 오류가 의심되면 DNSViz로 확인한다. DNSSEC를 무작정 끄지 말고 DS와 zone 서명 불일치를 먼저 확인한다.
-8. Vercel Domain 상태와 Function 로그를 확인한 뒤 재검증한다.
+아래 한 줄로 진단 자료를 출력한다.
 
-## 13. 롤백
+```bash
+cd /home/ahn/aloha
+npm run cutover:check -- diagnose | tee "$HOME/aloha-cutover-diagnose.txt"
+```
 
-Vercel 배포·DB·TLS 중 중대한 문제가 있고 즉시 해결되지 않으면 다음 순서로 되돌린다.
+| 증상 | 확인/조치 |
+|---|---|
+| A가 `3.37.189.12` | 아직 Lightsail. Namecheap apex A 저장/전파 확인 |
+| `www` CNAME 없음 | Namecheap CNAME Host `www` 추가 |
+| TLS 인증서 출력 없음 | Vercel Domains의 `Invalid Configuration`, A/CNAME 확인 |
+| CAA가 있는데 `letsencrypt.org` 없음 | `CAA 0 issue "letsencrypt.org"` 추가 |
+| `_acme-challenge`가 다른 업체를 가리킴 | 오래된 TXT/CNAME 제거 후 Vercel 재검증 |
+| AAAA가 존재하고 Vercel 안내와 다름 | AAAA 제거 |
+| 브라우저만 이전 사이트 | 로컬 DNS/브라우저 캐시 문제. 1.1.1.1/8.8.8.8 결과 비교 |
+| Vercel인데 500 | Vercel Logs 확인, 환경변수와 Supabase 연결 재검증 |
 
-1. DNS apex A를 기록해 둔 `3.37.189.12`로 복원한다.
-2. `www`도 이전 정책에 맞게 제거하거나 이전 대상으로 복구한다.
-3. DNS가 전파될 때까지 Vercel과 Lightsail을 모두 유지한다.
-4. Lightsail의 `https://aloha-yt.xyz` 200과 기존 인증서가 정상인지 확인한다.
-5. 장애 원인을 수정하고 임시 Vercel 주소에서 전체 검증한 뒤 새 전환 시간을 잡는다.
+Vercel 공식 문제 해결: [Troubleshooting domains](https://vercel.com/docs/domains/troubleshooting)
 
-낮은 TTL과 살아 있는 Lightsail이 핵심 예방책이다. DNS 전환 직후 Lightsail을 중지하거나 삭제하면 빠른 롤백이 불가능하다.
+## 14. 즉시 롤백
+
+다음 중 하나면 롤백한다.
+
+- apex HTTPS 인증서 오류가 10분 이상 지속
+- 홈/상품/관리자 핵심 기능이 Vercel에서 복구되지 않음
+- 주문·DB 저장이 실패
+
+먼저 Lightsail 인스턴스가 실행 중인지 확인한다. 그다음 Namecheap에서:
+
+1. `Advanced DNS → A Record → Host @` Edit
+2. Value를 `3.37.189.12`로 복원
+3. TTL `5 min`
+4. 저장
+5. 새로 추가한 `www` CNAME 삭제
+
+아래를 반복 실행한다.
+
+```bash
+dig +short A aloha-yt.xyz @1.1.1.1
+curl -I https://aloha-yt.xyz/
+npm run cutover:check -- diagnose
+```
+
+합격 조건:
+
+- A가 `3.37.189.12`
+- 응답 Server가 다시 `Apache`
+- HTTPS 200과 기존 인증서 정상
+
+DNS 캐시 때문에 일부 사용자는 잠시 Vercel을 계속 볼 수 있다. 양쪽 서비스를 모두 유지하고 원인을 고친 뒤 새 전환 일정을 잡는다.
+
+## 15. 전환 후 2주
+
+다음 조건을 2주 동안 모두 만족한 후에만 Lightsail 종료를 결정한다.
+
+- 외부 monitor 장애 없음
+- Vercel 오류 로그에 반복 5xx 없음
+- Supabase cron 최근 성공 유지
+- 관리자 저장·Cloudinary 업로드·주문 정상
+- Search Console HTTPS/Page indexing에 급증 오류 없음
+- Supabase 백업과 복원 시험 가능
+
+안정화 후 Namecheap apex TTL을 `30 min` 또는 `Automatic`으로 되돌린다. Lightsail은 바로 삭제하지 말고 snapshot을 먼저 보존한다.

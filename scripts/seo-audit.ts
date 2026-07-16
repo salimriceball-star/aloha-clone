@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 
 const baseUrl = new URL(process.argv[2] ?? process.env.SEO_AUDIT_BASE_URL ?? "http://127.0.0.1:3000");
+const expectedSiteUrl = new URL(process.argv[3] ?? baseUrl);
 const failures: string[] = [];
 const checks: Record<string, boolean | number | string> = {};
 
@@ -99,11 +100,11 @@ async function main() {
     checkoutResponse.text()
   ]);
   const canonical = getCanonical(homeHtml);
-  check("home_canonical", normalizedUrl(canonical) === normalizedUrl(baseUrl.toString()), canonical);
+  check("home_canonical", normalizedUrl(canonical) === normalizedUrl(expectedSiteUrl.toString()), canonical);
   check("organization_jsonld", hasJsonLdType(parseJsonLd(homeHtml), "Organization"));
   check("feed_discovery", /<link\b[^>]*type=["']application\/rss\+xml["'][^>]*>/i.test(homeHtml));
   check("feed_rss_document", /<rss\b/i.test(feedXml) && /<channel>/i.test(feedXml));
-  check("robots_sitemap", robotsText.includes(new URL("/sitemap.xml", baseUrl).toString()));
+  check("robots_sitemap", robotsText.includes(new URL("/sitemap.xml", expectedSiteUrl).toString()));
   check("robots_blocks_private", ["/loginpage", "/api/", "/checkout", "/search"].every((path) => robotsText.includes(path)));
 
   check("login_noindex", /noindex/i.test(getRobotsMeta(loginHtml)));
@@ -118,13 +119,13 @@ async function main() {
   const locations = urls.map((entry) => entry.loc ?? "").filter(Boolean);
   check("sitemap_url_count", locations.length > 0, locations.length);
   check("sitemap_unique", new Set(locations).size === locations.length, locations.length);
-  check("sitemap_single_origin", locations.every((location) => new URL(location).origin === baseUrl.origin));
+  check("sitemap_single_origin", locations.every((location) => new URL(location).origin === expectedSiteUrl.origin));
   check("sitemap_lastmod", urls.every((entry) => Boolean(entry.lastmod)));
 
   const productUrl = locations.find((location) => new URL(location).pathname.startsWith("/product/"));
   check("sitemap_has_product", Boolean(productUrl));
   if (productUrl) {
-    const response = await fetch(productUrl);
+    const response = await get(new URL(productUrl).pathname);
     const html = await response.text();
     check("product_status", response.ok, response.status);
     check("product_canonical", normalizedUrl(getCanonical(html)) === normalizedUrl(productUrl));
@@ -136,13 +137,19 @@ async function main() {
   const articleUrl = locations.find((location) => /^\/20\d{2}\//.test(new URL(location).pathname));
   check("sitemap_has_article", Boolean(articleUrl));
   if (articleUrl) {
-    const response = await fetch(articleUrl);
+    const response = await get(new URL(articleUrl).pathname);
     const html = await response.text();
     check("article_status", response.ok, response.status);
     check("article_jsonld", hasJsonLdType(parseJsonLd(html), "Article"));
   }
 
-  console.log(JSON.stringify({ baseUrl: baseUrl.toString(), passed: failures.length === 0, checks, failures }, null, 2));
+  console.log(JSON.stringify({
+    baseUrl: baseUrl.toString(),
+    expectedSiteUrl: expectedSiteUrl.toString(),
+    passed: failures.length === 0,
+    checks,
+    failures
+  }, null, 2));
   if (failures.length > 0) process.exitCode = 1;
 }
 

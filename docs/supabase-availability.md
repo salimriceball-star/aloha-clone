@@ -20,17 +20,22 @@
 
 ## Required Vercel environment
 
-1. Production 환경에 `CRON_SECRET`을 예측 불가능한 32-byte 이상 값으로 추가한다.
-2. 가능하면 기존 `SUPABASE_DIRECT_URL`과 같은 pooler URI를 `SUPABASE_DATABASE_URL` 이름으로도 추가한다.
-3. 환경변수 변경 후 production을 재배포한다.
+아래 명령 하나가 누락값 생성/숨김 입력, 기존값 유지, Production 재배포를 처리한다.
+
+```bash
+cd /home/ahn/aloha
+npm run vercel:configure-env -- --deploy
+```
 
 Vercel은 Cron 호출 시 `Authorization: Bearer $CRON_SECRET`을 자동 전송한다. endpoint는 정확히 일치할 때만 DB를 호출하며 secret이나 연결 문자열을 응답/로그에 출력하지 않는다.
 
 ## Manual verification
 
 ```bash
-curl -i -H "Authorization: Bearer $CRON_SECRET" \
-  https://aloha-clone.vercel.app/api/cron/supabase-health
+read -r -s -p 'Vercel CRON_SECRET을 붙여넣으세요: ' CRON_SECRET; echo
+curl -i --max-time 30 -H "Authorization: Bearer $CRON_SECRET" \
+  https://aloha-yt.xyz/api/cron/supabase-health
+unset CRON_SECRET
 ```
 
 - 응답 `ok: true`, `connectionMode: supavisor-transaction` 확인
@@ -40,4 +45,14 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 ## Free-plan backup
 
 - keepalive는 일시정지 가능성을 낮추지만 보장하지 않는다. 무중단 보장이 필요하면 Pro로 전환한다.
-- Free 플랜은 자동 일일 백업이 없으므로 Supabase CLI `db dump`를 이용한 외부 백업을 별도로 운영한다.
+- Free 플랜은 자동 일일 백업이 없다. Ubuntu 24.04에서 아래를 순서대로 실행한다.
+
+```bash
+sudo apt-get update
+sudo apt-get install -y postgresql-client-16
+cd /home/ahn/aloha
+npm run backup:supabase
+```
+
+- direct/session pooler `:5432` URI를 숨김 입력하면 public schema/data dump와 checksum을 `$HOME/aloha-backups`에 생성한다.
+- 전체 전환/백업 합격 기준은 `docs/aloha-yt-vercel-cutover-runbook.md`를 따른다.

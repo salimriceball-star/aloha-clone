@@ -1,37 +1,15 @@
 # Domain Cutover
 
-## Target
+이 파일은 기존 링크 호환용이다. 실제 `aloha-yt.xyz` 전환은 아래 단일 런북만 사용한다.
 
-- target custom domain: `https://aloha-yt.xyz`
-- registrar/DNS UI: 확인 필요
-- Vercel project: 생성 후 연결 예정
+- [aloha-yt.xyz → Vercel 복사·붙여넣기 전환 런북](./aloha-yt-vercel-cutover-runbook.md)
 
-## Route Parity Targets
+요약 명령:
 
-- `/2025/06/notice/`
-- `/2025/05/q-honey/`
-- `/shop/`
-- `/product/208/`
-- `/product/207/`
-- `/product/206/`
-- `/product/205/`
-- `/deposit/`
-- `/cart/`
-- `/checkout/`
-- `/352/`
-- `/1422/`
-- `/2373/`
+```bash
+cd /home/ahn/aloha
+npm run vercel:configure-env -- --deploy
+npm run cutover:check -- baseline
+```
 
-## Cutover Flow
-
-1. Vercel 프로젝트 생성
-2. `aloha-yt.xyz` 와 `www.aloha-yt.xyz` 추가
-3. primary domain 지정
-4. DNS 값 확정
-5. registrar에서 apex/www 웹 레코드만 Vercel 기준으로 교체
-6. 전파 후 주요 경로 smoke test
-
-## Notes
-
-- 실제 registrar가 Namecheap인지 다른 서비스인지 아직 확인이 필요하다.
-- 메일을 사용 중이면 `MX`, `TXT`, `SPF`, `DKIM`, `DMARC` 는 유지하고 웹 연결 레코드만 바꾼다.
+DNS를 변경하기 전에 두 명령이 모두 성공해야 한다. Namecheap 입력값, `www` canary, apex 전환, TLS 검증, Search Console, 롤백은 반드시 전체 런북 순서대로 진행한다.

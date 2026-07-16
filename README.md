@@ -16,11 +16,12 @@ Vercel-first clone project for `aloha-yt.xyz`.
 
 ## Key Docs
 
+- `docs/aloha-yt-vercel-cutover-runbook.md` — 실제 전환용 복사·붙여넣기 런북
 - `docs/project-brief.md`
 - `docs/clone-plan.md`
 - `docs/site-audit.md`
 - `docs/asset-pipeline.md`
 - `docs/browseros-qa.md`
 - `docs/vercel-deploy.md`
-- `docs/domain-cutover.md`
+- `docs/vercel-cutover-seo.md`
 - `agents.md`

@@ -34,6 +34,8 @@
 
 ## Pre-Deploy Checks
 
+- `npm run vercel:configure-env -- --deploy`
+- `npm run cutover:check -- baseline`
 - `MAX_TREE_RSS_MB=1500 MIN_AVAILABLE_MB=700 ./scripts/run-guarded.sh npm run build`
 - `./scripts/run-guarded.sh npm run lint`
 - local preview 기동 후 `./scripts/run-guarded.sh npx tsx scripts/browseros-targeted-qa.ts`
@@ -44,11 +46,11 @@
 - 로컬 git origin 연결 완료
 - Vercel project 생성 및 GitHub repo 연결 완료
 - Vercel runtime node `20.x` 반영 완료
-- Vercel env sync 완료
+- Vercel 환경변수 존재. 2026-07-16 기준 final-domain canonical 갱신은 `vercel:configure-env -- --deploy` 실행 필요
 - guarded `lint` / `build` 통과
 - BrowserOS targeted QA 통과:
 - local `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-37-35-362Z/report.json`
 - public `/home/vboxuser/aloha_clone/artifacts/browseros-targeted-qa/2026-04-07T04-41-55-951Z/report.json`
-- latest deployment: `dpl_9G4eqxBp1Nb93XBqffq6ZPW1fuK8` `READY`
-- production smoke test 완료
-- `https://aloha-clone.vercel.app` 기준 canonical / og:url / robots / sitemap 검증 완료
+- 2026-07-16 public `/`, `/feed.xml`, `/sitemap.xml` 200
+- 임시 주소 자체 기준 SEO audit 통과
+- final domain 예상 audit는 canonical이 아직 Vercel alias라 의도대로 실패. 환경변수 재배포 후 통과 필요

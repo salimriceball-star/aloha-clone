@@ -1,6 +1,6 @@
 # Progress
 
-현재 milestone: aloha-yt.xyz cutover runbook + TLS safety
+현재 milestone: copy-paste Vercel cutover automation
 
 - [x] metadata·sitemap·robots·redirect·구조화 데이터 감사
 - [x] canonical 운영 도메인 자동 해석과 관리자 상태 표시
@@ -17,3 +17,8 @@
 - [x] 환경변수→도메인 등록→DNS→TLS→SEO 순차 실행서
 - [x] 메일 DNS 보존·장애 진단·롤백·백업·모니터링 절차
 - [x] docs 검증·memory·commit·push
+- [x] Production env 중복 처리·비밀값 보존·재배포 스크립트
+- [x] Supabase 비공개 URL backup·checksum 스크립트
+- [x] baseline·www canary·production·diagnose 자동 판정
+- [x] 전체 15단계 Namecheap/Vercel/Search Console 복붙 런북
+- [x] lint·shell/docs QA·memory·commit·push
