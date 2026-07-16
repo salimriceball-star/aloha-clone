@@ -67,7 +67,14 @@ case "$mode" in
   canary)
     printf 'www canary DNS/TLS 검사\n'
     cname=$(dig +short CNAME "$www_domain" @1.1.1.1 | tail -n 1)
-    [[ -n "$cname" ]] && pass "$www_domain CNAME=$cname" || fail "$www_domain CNAME 없음"
+    a_record=$(dig +short A "$www_domain" @1.1.1.1 | paste -sd, -)
+    if [[ -n "$cname" ]]; then
+      pass "$www_domain CNAME=$cname"
+    elif [[ -n "$a_record" ]]; then
+      pass "$www_domain A=$a_record"
+    else
+      fail "$www_domain A/CNAME 없음"
+    fi
     if tls_certificate "$www_domain"; then pass "$www_domain TLS 인증서 확인"; else fail "$www_domain TLS 인증서 실패"; fi
     check_200 "https://$www_domain/"
     has_vercel_header "https://$www_domain/" && pass 'www가 Vercel 응답' || fail 'www x-vercel-id 헤더 없음'

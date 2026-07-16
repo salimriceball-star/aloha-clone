@@ -22,3 +22,5 @@
 - [x] baseline·www canary·production·diagnose 자동 판정
 - [x] 전체 15단계 Namecheap/Vercel/Search Console 복붙 런북
 - [x] lint·shell/docs QA·memory·commit·push
+- [x] Vercel 실제 www A-record 권고 대응과 canary A/CNAME 호환
+- [x] canary patch QA·memory·commit·push

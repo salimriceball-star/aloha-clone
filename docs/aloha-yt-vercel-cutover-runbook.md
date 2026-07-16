@@ -211,10 +211,11 @@ npm run vercel:cli -- domains inspect aloha-yt.xyz
 
 `already exists`가 나오면 삭제하지 말고 이어지는 `domains inspect` 결과를 사용한다. 다른 Vercel 계정 소유라고 나오면 표시된 TXT verification 레코드를 Namecheap `Advanced DNS`에 먼저 추가하고 `inspect`를 다시 실행한다.
 
-두 `inspect` 결과에서 요구하는 값을 메모한다.
+두 `inspect` 결과에서 요구하는 레코드 type과 값을 메모한다. Vercel은 상황에 따라 `www`에도 CNAME 대신 A를 제시할 수 있다.
 
 ```text
-WWW_CNAME_VALUE=Vercel inspect가 표시한 www CNAME 값
+WWW_DNS_TYPE=Vercel inspect가 표시한 www record type
+WWW_DNS_VALUE=Vercel inspect가 표시한 www record value
 APEX_A_VALUE=Vercel inspect가 표시한 apex A 값
 ```
 
@@ -230,9 +231,9 @@ Namecheap에서:
 
 1. `Domain List → aloha-yt.xyz → Manage → Advanced DNS`
 2. `Host Records → Add New Record`
-3. Type `CNAME Record`
+3. Type은 6단계의 `WWW_DNS_TYPE`과 동일하게 선택. 현재 Vercel 출력이 `A www.aloha-yt.xyz 76.76.21.21`이면 `A Record` 선택
 4. Host `www`
-5. Value에 6단계의 `WWW_CNAME_VALUE`를 붙여넣기
+5. Value에 6단계의 `WWW_DNS_VALUE`를 붙여넣기. 현재 출력 기준 `76.76.21.21`
 6. TTL `Automatic` 또는 `5 min`
 7. 저장
 
@@ -245,7 +246,7 @@ npm run cutover:check -- canary
 
 DNS 전파 중에는 실패할 수 있다. 5분 후 다시 실행한다. 합격 조건:
 
-- `www.aloha-yt.xyz CNAME=...` PASS
+- `www.aloha-yt.xyz A=...` 또는 `CNAME=...` PASS
 - TLS 인증서 PASS
 - `https://www.aloha-yt.xyz/ → 200` PASS
 - `www가 Vercel 응답` PASS
@@ -373,7 +374,7 @@ npm run cutover:check -- diagnose | tee "$HOME/aloha-cutover-diagnose.txt"
 | 증상 | 확인/조치 |
 |---|---|
 | A가 `3.37.189.12` | 아직 Lightsail. Namecheap apex A 저장/전파 확인 |
-| `www` CNAME 없음 | Namecheap CNAME Host `www` 추가 |
+| `www` A/CNAME 없음 | Vercel inspect가 제시한 type과 값으로 Namecheap Host `www` 추가 |
 | TLS 인증서 출력 없음 | Vercel Domains의 `Invalid Configuration`, A/CNAME 확인 |
 | CAA가 있는데 `letsencrypt.org` 없음 | `CAA 0 issue "letsencrypt.org"` 추가 |
 | `_acme-challenge`가 다른 업체를 가리킴 | 오래된 TXT/CNAME 제거 후 Vercel 재검증 |
@@ -397,7 +398,7 @@ Vercel 공식 문제 해결: [Troubleshooting domains](https://vercel.com/docs/d
 2. Value를 `3.37.189.12`로 복원
 3. TTL `5 min`
 4. 저장
-5. 새로 추가한 `www` CNAME 삭제
+5. 새로 추가한 `www` A/CNAME 삭제
 
 아래를 반복 실행한다.
 
