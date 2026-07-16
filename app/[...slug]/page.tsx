@@ -55,15 +55,23 @@ export async function generateMetadata({
 
   const page = await getPageByPath(path);
   if (page) {
+    const canIndex = page.visibility === "public" && page.allowIndexing;
+    const isPasswordProtected = page.visibility === "password";
     return {
-      title: page.title,
+      title: isPasswordProtected ? `보호된 페이지: ${page.title}` : page.title,
+      description: isPasswordProtected ? "비밀번호로 보호된 페이지입니다." : undefined,
       alternates: {
         canonical: page.legacyPath
       },
       openGraph: {
-        title: page.title,
+        title: isPasswordProtected ? `보호된 페이지: ${page.title}` : page.title,
         url: page.legacyPath,
         type: "article"
+      },
+      robots: {
+        index: canIndex,
+        follow: canIndex,
+        noarchive: !canIndex
       }
     };
   }
@@ -212,6 +220,20 @@ export default async function CatchAllPage({
   }
   if (!page) {
     notFound();
+  }
+
+  if (page.visibility === "password") {
+    return (
+      <main className="shell">
+        <ProtectedPostGate post={{
+          id: page.id,
+          path,
+          title: page.title,
+          date: page.date,
+          categoryNames: ["페이지"]
+        }} />
+      </main>
+    );
   }
 
   return (

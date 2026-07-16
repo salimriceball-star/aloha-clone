@@ -1,6 +1,6 @@
-import { listAdminAssets, listAdminOrders, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
+import { listAdminAssets, listAdminOrders, listAdminProductOverrides } from "@/lib/admin-store";
 import { getAdminDbHealthStatus } from "@/lib/admin-db";
-import { getSiteMeta } from "@/lib/site-data";
+import { ensureAdminContentCatalog, getSiteMeta } from "@/lib/site-data";
 import { getSiteUrlInfo } from "@/lib/site-url";
 
 function connectionModeLabel(mode: Awaited<ReturnType<typeof getAdminDbHealthStatus>>["connectionMode"]) {
@@ -12,7 +12,7 @@ function connectionModeLabel(mode: Awaited<ReturnType<typeof getAdminDbHealthSta
 
 export default async function LoginpageDashboardPage() {
   const [posts, products, assets, orders, dbHealth, siteMeta] = await Promise.all([
-    listAdminPosts(),
+    ensureAdminContentCatalog(),
     listAdminProductOverrides(),
     listAdminAssets(),
     listAdminOrders(12),
@@ -30,7 +30,7 @@ export default async function LoginpageDashboardPage() {
         <h1>운영 대시보드</h1>
         <div className="stats-grid">
           <article className="stat-card">
-            <span>작성 글</span>
+            <span>글·페이지</span>
             <strong>{posts.length}</strong>
           </article>
           <article className="stat-card">

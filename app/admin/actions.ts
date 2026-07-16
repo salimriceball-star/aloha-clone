@@ -25,7 +25,7 @@ function normalizePathInput(value: string) {
   }
 
   const compact = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return compact.replace(/\/+$/, "");
+  return compact.replace(/\/+$/, "") || "/";
 }
 
 function formatDatePath(value: string) {
@@ -66,6 +66,10 @@ export async function savePostAction(formData: FormData) {
   await requireAdminSession();
 
   const id = Number(formData.get("id") ?? 0) || null;
+  const rawSourceId = String(formData.get("sourceId") ?? "").trim();
+  const sourceIdValue = rawSourceId ? Number(rawSourceId) : Number.NaN;
+  const sourceId = Number.isFinite(sourceIdValue) ? sourceIdValue : null;
+  const contentType = formData.get("contentType") === "page" ? "page" : "post";
   const title = String(formData.get("title") ?? "").trim();
   const rawSlug = String(formData.get("slug") ?? "").trim();
   const publishedAt = String(formData.get("publishedAt") ?? new Date().toISOString());
@@ -92,7 +96,7 @@ export async function savePostAction(formData: FormData) {
   const customPath = normalizePathInput(String(formData.get("path") ?? ""));
   const returnTo = String(formData.get("returnTo") ?? "");
 
-  if (!title || !contentHtml.trim()) {
+  if (!title || (contentType === "post" && !contentHtml.trim())) {
     redirect(buildRedirectPath(returnTo, id ? `/loginpage/posts/edit/${id}` : "/loginpage/posts/new", { error: "required" }));
   }
 
@@ -101,10 +105,13 @@ export async function savePostAction(formData: FormData) {
   }
 
   const slug = slugify(rawSlug || title);
-  const path = customPath || `${formatDatePath(publishedAt)}/${slug}`;
+  const path = customPath || (contentType === "page" ? `/${slug}` : `${formatDatePath(publishedAt)}/${slug}`);
+  const previousPost = id ? await getAdminPostById(id) : null;
 
   const savedPost = await saveAdminPost({
     id,
+    contentType,
+    sourceId,
     slug,
     path,
     title,
@@ -113,7 +120,7 @@ export async function savePostAction(formData: FormData) {
     publishedAt,
     visibility,
     accessPassword: visibility === "password" ? accessPassword : null,
-    listedInArchive: visibility === "private" ? false : listedInArchive,
+    listedInArchive: contentType === "page" || visibility === "private" ? false : listedInArchive,
     publicationStatus,
     listedInSearch: visibility === "private" || visibility === "password" ? false : listedInSearch,
     allowIndexing: visibility === "public" ? allowIndexing : false
@@ -126,9 +133,10 @@ export async function savePostAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/page/[page]", "page");
   revalidatePath("/column");
+  if (previousPost?.path && previousPost.path !== path) revalidatePath(previousPost.path);
   revalidatePath(path);
   revalidatePath("/sitemap.xml");
-  redirect(buildRedirectPath(id ? `/loginpage/posts/edit/${id}` : "/loginpage/posts", "/loginpage/posts", { saved: publicationStatus }));
+  redirect(buildRedirectPath(`/loginpage/posts/edit/${savedPost.id}`, "/loginpage/posts", { saved: publicationStatus }));
 }
 
 export async function duplicatePostAction(formData: FormData) {
@@ -140,6 +148,8 @@ export async function duplicatePostAction(formData: FormData) {
   }
   const suffix = Date.now().toString(36);
   const copy = await saveAdminPost({
+    contentType: source.contentType,
+    sourceId: null,
     slug: `${source.slug}-copy-${suffix}`,
     path: `${source.path}-copy-${suffix}`,
     title: `${source.title} (복사본)`,

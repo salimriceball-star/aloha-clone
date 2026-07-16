@@ -4,8 +4,12 @@ import { cache } from "react";
 
 import {
   getAdminSetting,
+  listAdminContent,
+  listAdminPages,
   listAdminPosts,
   listAdminProductOverrides,
+  seedAdminContent,
+  type AdminPostInput,
   type AdminPostRecord,
   type AdminProductOverride
 } from "@/lib/admin-store";
@@ -218,6 +222,12 @@ export type PageEntry = {
   title: string;
   excerptHtml: string;
   contentHtml: string;
+  visibility: AdminPostRecord["visibility"];
+  accessPassword: string | null;
+  publicationStatus: AdminPostRecord["publicationStatus"];
+  listedInSearch: boolean;
+  allowIndexing: boolean;
+  updatedAt: string;
 };
 
 type SiteManifest = {
@@ -564,12 +574,18 @@ const getMergedPosts = cache(async () => {
   ]);
 
   const adminEntries = adminPosts.map(mapAdminPostToEntry);
+  const overriddenSourceIds = new Set(
+    adminPosts.flatMap((post) => (post.sourceId === null ? [] : [post.sourceId]))
+  );
   const ordered = [...adminEntries, ...protectedPosts, ...sourcePosts];
   const seenIds = new Set<number>();
   const seenPaths = new Set<string>();
   const merged: PostEntry[] = [];
 
   for (const post of ordered) {
+    if (post.id > 0 && overriddenSourceIds.has(post.id)) {
+      continue;
+    }
     if (seenIds.has(post.id) || seenPaths.has(post.legacyPath)) {
       continue;
     }
@@ -602,9 +618,33 @@ export async function getPosts() {
 export async function searchPosts(query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase("ko-KR");
   if (!normalizedQuery) return [];
-  const posts = await getMergedPosts();
+  const [posts, pages] = await Promise.all([getMergedPosts(), getPages()]);
+  const searchablePages: PostEntry[] = pages.map((page) => ({
+    id: -2_000_000_000 - Math.abs(page.id),
+    date: page.date,
+    slug: page.slug,
+    legacyPath: page.legacyPath,
+    aliasPaths: [],
+    pathSegments: page.pathSegments,
+    link: page.link,
+    title: page.title,
+    excerpt: stripHtml(page.excerptHtml || page.contentHtml),
+    excerptHtml: page.excerptHtml,
+    contentHtml: page.contentHtml,
+    coverImageUrl: extractFirstImageUrl(page.contentHtml) ?? extractFirstImageUrl(page.excerptHtml),
+    categoryNames: ["페이지"],
+    commentCount: 0,
+    sticky: false,
+    visibility: page.visibility,
+    accessPassword: page.accessPassword,
+    listedInArchive: false,
+    publicationStatus: page.publicationStatus,
+    listedInSearch: page.listedInSearch,
+    allowIndexing: page.allowIndexing,
+    updatedAt: page.updatedAt
+  }));
   return sortPostsForHome(
-    posts.filter((post) => {
+    [...posts, ...searchablePages].filter((post) => {
       if (
         !isPostLive(post) ||
         !post.listedInSearch ||
@@ -964,7 +1004,7 @@ export async function getShopPageCount(pageSize = 16) {
   return Math.max(1, Math.ceil(products.length / pageSize));
 }
 
-export const getPages = cache(async (): Promise<PageEntry[]> => {
+const getSourcePages = cache(async (): Promise<PageEntry[]> => {
   const payload = await readJson<WpPaged<RawPost>>("pages.json");
 
   return Promise.all(
@@ -977,22 +1017,158 @@ export const getPages = cache(async (): Promise<PageEntry[]> => {
       link: page.link,
       title: decodeHtmlEntities(page.title.rendered),
       excerptHtml: await rewriteHtmlAssetUrls(page.excerpt.rendered),
-      contentHtml: await rewriteHtmlAssetUrls(page.content.rendered)
+      contentHtml: await rewriteHtmlAssetUrls(page.content.rendered),
+      visibility: "public" as const,
+      accessPassword: null,
+      publicationStatus: "published" as const,
+      listedInSearch: true,
+      allowIndexing: true,
+      updatedAt: page.date
     }))
   );
 });
 
+function mapAdminPageToEntry(page: AdminPostRecord): PageEntry {
+  return {
+    id: -page.id,
+    date: page.publishedAt,
+    slug: page.slug,
+    legacyPath: normalizePath(page.path),
+    pathSegments: pathToSegments(page.path),
+    link: page.path,
+    title: page.title,
+    excerptHtml: page.excerptHtml,
+    contentHtml: page.contentHtml,
+    visibility: page.visibility,
+    accessPassword: page.visibility === "password" ? page.accessPassword : null,
+    publicationStatus: page.publicationStatus,
+    listedInSearch: page.listedInSearch,
+    allowIndexing: page.allowIndexing,
+    updatedAt: page.updatedAt
+  };
+}
+
+export const getPages = cache(async (): Promise<PageEntry[]> => {
+  const [sourcePages, adminPages] = await Promise.all([getSourcePages(), listAdminPages()]);
+  const overriddenSourceIds = new Set(
+    adminPages.flatMap((page) => (page.sourceId === null ? [] : [page.sourceId]))
+  );
+  const seenPaths = new Set<string>();
+  const merged: PageEntry[] = [];
+
+  for (const page of [
+    ...adminPages.map(mapAdminPageToEntry),
+    ...sourcePages.filter((page) => !overriddenSourceIds.has(page.id))
+  ]) {
+    if (seenPaths.has(page.legacyPath)) continue;
+    seenPaths.add(page.legacyPath);
+    merged.push(page);
+  }
+
+  return sortByDateDesc(merged);
+});
+
+function isPageLive(page: PageEntry) {
+  return page.publicationStatus === "published" && Date.parse(page.date) <= Date.now();
+}
+
 export const getPageBySlug = cache(async (slug: string) => {
   const pages = await getPages();
   const normalizedSlug = normalizeSlug(slug);
-  return pages.find((page) => page.slug === normalizedSlug) ?? null;
+  const match = pages.find((page) => page.slug === normalizedSlug) ?? null;
+  return match && isPageLive(match) && match.visibility !== "private" ? match : null;
 });
 
 export const getPageByPath = cache(async (path: string) => {
   const pages = await getPages();
   const normalizedPath = normalizePath(path);
-  return pages.find((page) => page.legacyPath === normalizedPath) ?? null;
+  const match = pages.find((page) => page.legacyPath === normalizedPath) ?? null;
+  return match && isPageLive(match) && match.visibility !== "private" ? match : null;
 });
+
+const getSourceContentSeed = cache(async (): Promise<AdminPostInput[]> => {
+  const [sourcePosts, protectedPosts, sourcePages] = await Promise.all([
+    getSourcePosts(),
+    getSourceProtectedPosts(),
+    getSourcePages()
+  ]);
+  const protectedIds = new Set(protectedPosts.map((post) => post.id));
+  const mergedPosts = [...protectedPosts, ...sourcePosts.filter((post) => !protectedIds.has(post.id))];
+
+  const postInputs: AdminPostInput[] = mergedPosts.map((post) => ({
+    contentType: "post",
+    sourceId: post.id,
+    slug: post.slug,
+    path: post.legacyPath,
+    title: post.title,
+    excerptHtml: post.excerptHtml,
+    contentHtml: post.contentHtml,
+    publishedAt: post.date,
+    visibility: post.visibility,
+    accessPassword: post.accessPassword,
+    listedInArchive: post.listedInArchive,
+    publicationStatus: post.publicationStatus,
+    listedInSearch: post.listedInSearch,
+    allowIndexing: post.allowIndexing
+  }));
+  const pageInputs: AdminPostInput[] = sourcePages.map((page) => ({
+    contentType: "page",
+    sourceId: page.id,
+    slug: page.slug,
+    path: page.legacyPath,
+    title: page.title,
+    excerptHtml: page.excerptHtml,
+    contentHtml: page.contentHtml,
+    publishedAt: page.date,
+    visibility: page.visibility,
+    accessPassword: page.accessPassword,
+    listedInArchive: false,
+    publicationStatus: page.publicationStatus,
+    listedInSearch: page.listedInSearch,
+    allowIndexing: page.allowIndexing
+  }));
+
+  return [
+    {
+      contentType: "page",
+      sourceId: 0,
+      slug: "home",
+      path: "/",
+      title: "글 목록",
+      excerptHtml: "",
+      contentHtml: "",
+      publishedAt: new Date(0).toISOString(),
+      visibility: "public",
+      accessPassword: null,
+      listedInArchive: false,
+      publicationStatus: "published",
+      listedInSearch: false,
+      allowIndexing: true
+    },
+    ...postInputs,
+    ...pageInputs
+  ];
+});
+
+export async function ensureAdminContentCatalog() {
+  const [sourceContent, existing] = await Promise.all([getSourceContentSeed(), listAdminContent()]);
+  const existingSourceKeys = new Set(
+    existing.flatMap((record) =>
+      record.sourceId === null ? [] : [`${record.contentType}:${record.sourceId}`]
+    )
+  );
+  const existingPaths = new Set(existing.map((record) => normalizePath(record.path)));
+  const missing = sourceContent.filter(
+    (record) =>
+      record.sourceId !== null &&
+      !existingSourceKeys.has(`${record.contentType}:${record.sourceId}`) &&
+      !existingPaths.has(normalizePath(record.path))
+  );
+
+  if (missing.length === 0) return existing;
+  await seedAdminContent(missing);
+  return listAdminContent();
+}
 
 export async function getHomeSnapshot() {
   const [manifest, posts, products, commentsPayload] = await Promise.all([

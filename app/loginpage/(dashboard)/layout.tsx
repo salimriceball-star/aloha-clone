@@ -16,7 +16,7 @@ export default async function LoginpageDashboardLayout({
         <p className="eyebrow">Admin</p>
         <nav className="admin-nav">
           <Link href="/loginpage/dashboard">대시보드</Link>
-          <Link href="/loginpage/posts">글 관리</Link>
+          <Link href="/loginpage/posts">글·페이지 관리</Link>
           <Link href="/loginpage/products">상품 관리</Link>
           <Link href="/loginpage/orders">주문 확인</Link>
           <Link href="/loginpage/assets">이미지 업로드</Link>

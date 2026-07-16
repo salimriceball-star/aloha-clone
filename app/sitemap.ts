@@ -3,7 +3,7 @@ import path from "node:path";
 
 import type { MetadataRoute } from "next";
 
-import { listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
+import { listAdminPages, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
 import { getSiteUrl } from "@/lib/site-url";
 
 type WpRendered = {
@@ -15,6 +15,7 @@ type WpPaged<T> = {
 };
 
 type RawPost = {
+  id: number;
   date: string;
   modified?: string;
   slug: string;
@@ -23,6 +24,7 @@ type RawPost = {
 };
 
 type RawPage = {
+  id: number;
   date: string;
   modified?: string;
   slug: string;
@@ -96,7 +98,7 @@ async function readJson<T>(filename: string): Promise<T> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [siteMeta, postsPayload, pagesPayload, productsPayload, visibilityPayload, adminPosts, adminProductOverrides] =
+  const [siteMeta, postsPayload, pagesPayload, productsPayload, visibilityPayload, adminPosts, adminPages, adminProductOverrides] =
     await Promise.all([
       readJson<SiteMeta>("site-meta.json"),
       readJson<WpPaged<RawPost>>("posts.json"),
@@ -104,6 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       readJson<WpPaged<RawProduct>>("products.json"),
       readJson<ShopVisibilityPayload>("shop-visibility.json"),
       listAdminPosts(),
+      listAdminPages(),
       listAdminProductOverrides()
     ]);
 
@@ -116,11 +119,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       post.visibility === "public" &&
       post.allowIndexing
   );
+  const overriddenPostSourceIds = new Set(
+    adminPosts.flatMap((post) => (post.sourceId === null ? [] : [post.sourceId]))
+  );
+  const overriddenPostPaths = new Set(adminPosts.map((post) => pathFromLink(post.path)));
   const publicPosts = [
-    ...postsPayload.records.map((post) => ({
+    ...postsPayload.records
+      .filter((post) => !overriddenPostSourceIds.has(post.id) && !overriddenPostPaths.has(pathFromLink(post.link)))
+      .map((post) => ({
       path: pathFromLink(post.link),
       lastModified: post.modified ?? post.date
-    })),
+      })),
     ...publicAdminPosts.map((post) => ({
       path: pathFromLink(post.path),
       lastModified: post.updatedAt
@@ -131,9 +140,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const homePageCount = Math.max(1, Math.ceil(publicPosts.length / 10));
   const paginatedEntries = Array.from({ length: Math.max(0, homePageCount - 1) }, (_, index) => `/page/${index + 2}`);
 
-  const pageEntries = pagesPayload.records
-    .filter((page) => !excludedPageSlugs.has(normalizeSlug(page.slug)))
-    .map((page) => ({ path: pathFromLink(page.link), lastModified: page.modified ?? page.date }));
+  const publicAdminPages = adminPages.filter(
+    (page) =>
+      page.publicationStatus === "published" &&
+      Date.parse(page.publishedAt) <= Date.now() &&
+      page.visibility === "public" &&
+      page.allowIndexing
+  );
+  const overriddenPageSourceIds = new Set(
+    adminPages.flatMap((page) => (page.sourceId === null ? [] : [page.sourceId]))
+  );
+  const overriddenPagePaths = new Set(adminPages.map((page) => pathFromLink(page.path)));
+  const pageEntries = [
+    ...pagesPayload.records
+      .filter(
+        (page) =>
+          !overriddenPageSourceIds.has(page.id) &&
+          !overriddenPagePaths.has(pathFromLink(page.link)) &&
+          !excludedPageSlugs.has(normalizeSlug(page.slug))
+      )
+      .map((page) => ({ path: pathFromLink(page.link), lastModified: page.modified ?? page.date })),
+    ...publicAdminPages
+      .filter((page) => !excludedPageSlugs.has(normalizeSlug(page.slug)) || page.path === "/")
+      .map((page) => ({ path: pathFromLink(page.path), lastModified: page.updatedAt }))
+  ];
 
   const visibleBaseProductSlugs = new Set(visibilityPayload.visibleSlugs.map((slug) => normalizeSlug(slug)));
   const overrideBySlug = new Map(adminProductOverrides.map((override) => [normalizeSlug(override.slug), override]));

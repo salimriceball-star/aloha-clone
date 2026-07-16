@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { duplicatePostAction, setPostPublicationAction } from "@/app/admin/actions";
-import { listAdminPosts } from "@/lib/admin-store";
+import { ensureAdminContentCatalog } from "@/lib/site-data";
 
 const visibilityLabel = {
   public: "공개",
@@ -15,7 +15,7 @@ export default async function LoginpagePostsPage({
 }: {
   searchParams: Promise<{ q?: string; saved?: string; status?: string; error?: string }>;
 }) {
-  const [posts, params] = await Promise.all([listAdminPosts(), searchParams]);
+  const [posts, params] = await Promise.all([ensureAdminContentCatalog(), searchParams]);
   const query = params.q?.trim().toLocaleLowerCase("ko-KR") ?? "";
   const filteredPosts = query
     ? posts.filter((post) => `${post.title} ${post.slug} ${post.path}`.toLocaleLowerCase("ko-KR").includes(query))
@@ -26,11 +26,11 @@ export default async function LoginpagePostsPage({
       <section className="panel admin-post-index">
         <div className="admin-product-head">
           <div>
-            <p className="eyebrow">Posts</p>
-            <h1>글 관리</h1>
-            <p>목록에서는 가벼운 조회·상태 변경만 하고, 편집기는 한 글을 열 때만 로드합니다.</p>
+            <p className="eyebrow">Content</p>
+            <h1>글·페이지 관리</h1>
+            <p>기존 글, 이용약관 같은 고정 페이지, 홈 설정을 한곳에서 관리합니다. 상품은 상품 관리에서 별도로 다룹니다.</p>
           </div>
-          <Link href="/loginpage/posts/new" className="action-button">새 글</Link>
+          <Link href="/loginpage/posts/new" className="action-button">새 콘텐츠</Link>
         </div>
 
         {params.saved ? <p className="success-text">글을 {params.saved === "published" ? "발행" : "초안 저장"}했습니다.</p> : null}
@@ -39,7 +39,7 @@ export default async function LoginpagePostsPage({
 
         <form className="admin-post-filter" action="/loginpage/posts">
           <label className="field">
-            <span>글 검색</span>
+            <span>콘텐츠 검색</span>
             <input type="search" name="q" defaultValue={params.q} placeholder="제목, 슬러그, 경로" />
           </label>
           <button type="submit" className="action-button secondary-button">찾기</button>
@@ -54,7 +54,7 @@ export default async function LoginpagePostsPage({
                 <div className="admin-product-head">
                   <div>
                     <strong>{post.title}</strong>
-                    <span>{post.path}</span>
+                    <span>{post.contentType === "page" ? "페이지" : "글"} · {post.path}</span>
                   </div>
                   <div className="admin-inline-flags">
                     <span>{post.publicationStatus === "draft" ? "초안" : scheduled ? "예약" : "발행"}</span>
@@ -83,7 +83,7 @@ export default async function LoginpagePostsPage({
               </article>
             );
           })}
-          {filteredPosts.length === 0 ? <p className="empty-state">조건에 맞는 추가 글이 없습니다.</p> : null}
+          {filteredPosts.length === 0 ? <p className="empty-state">조건에 맞는 글 또는 페이지가 없습니다.</p> : null}
         </div>
       </section>
     </section>

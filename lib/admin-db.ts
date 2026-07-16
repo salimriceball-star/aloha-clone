@@ -115,6 +115,8 @@ async function ensureSchema(pool: Pool) {
       publication_status text not null default 'published' check (publication_status in ('draft', 'published')),
       listed_in_search boolean not null default true,
       allow_indexing boolean not null default true,
+      content_type text not null default 'post' check (content_type in ('post', 'page')),
+      source_id bigint,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
@@ -125,6 +127,14 @@ async function ensureSchema(pool: Pool) {
       add column if not exists listed_in_search boolean not null default true;
     alter table if exists clone_posts
       add column if not exists allow_indexing boolean not null default true;
+    alter table if exists clone_posts
+      add column if not exists content_type text not null default 'post';
+    alter table if exists clone_posts
+      add column if not exists source_id bigint;
+
+    create unique index if not exists clone_posts_source_unique
+      on clone_posts (content_type, source_id)
+      where source_id is not null;
 
     create table if not exists clone_products (
       id bigserial primary key,

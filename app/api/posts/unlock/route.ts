@@ -3,7 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { htmlHasLeadingImage } from "@/lib/html-utils";
-import { getPostByPath } from "@/lib/site-data";
+import { getPageByPath, getPostByPath } from "@/lib/site-data";
 
 type Attempt = {
   count: number;
@@ -38,16 +38,18 @@ export async function POST(request: NextRequest) {
   }
 
   const post = path ? await getPostByPath(path) : null;
-  if (!post || post.visibility !== "password" || !post.accessPassword || !passwordsMatch(password, post.accessPassword)) {
+  const page = !post && path ? await getPageByPath(path) : null;
+  const content = post ?? page;
+  if (!content || content.visibility !== "password" || !content.accessPassword || !passwordsMatch(password, content.accessPassword)) {
     attempts.set(key, { ...attempt, count: attempt.count + 1 });
     return NextResponse.json({ error: "비밀번호가 올바르지 않습니다." }, { status: 401 });
   }
 
   attempts.delete(key);
   const coverImageUrl =
-    post.coverImageUrl && !htmlHasLeadingImage(post.contentHtml, post.coverImageUrl) ? post.coverImageUrl : null;
+    post?.coverImageUrl && !htmlHasLeadingImage(post.contentHtml, post.coverImageUrl) ? post.coverImageUrl : null;
   return NextResponse.json(
-    { title: post.title, contentHtml: post.contentHtml, coverImageUrl },
+    { title: content.title, contentHtml: content.contentHtml, coverImageUrl },
     { headers: { "cache-control": "private, no-store" } }
   );
 }

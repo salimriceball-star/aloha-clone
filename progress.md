@@ -1,6 +1,15 @@
 # Progress
 
-현재 milestone: copy-paste Vercel cutover automation
+현재 milestone: unified post/page admin catalog
+
+- [x] 관리자 0건 원인 확인: 정적 WordPress export와 Supabase 관리자 테이블 분리
+- [x] `clone_posts`에 글/페이지 유형과 원본 ID 추적 스키마 추가
+- [x] 기존 글·페이지·홈을 수정값 비파괴 방식으로 관리자 DB에 자동 편입
+- [x] 관리자 목록을 상품 제외 글·페이지 통합 카탈로그로 전환
+- [x] 공개 홈·페이지·검색·sitemap 관리자 변경 반영 구현
+- [x] TypeScript·lint·Production형 build 검증
+- [ ] 배포 후 Supabase 자동 편입·관리자/공개 runtime QA
+- [ ] memory·commit·push
 
 - [x] metadata·sitemap·robots·redirect·구조화 데이터 감사
 - [x] canonical 운영 도메인 자동 해석과 관리자 상태 표시

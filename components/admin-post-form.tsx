@@ -27,9 +27,14 @@ export function AdminPostForm({
       <div className="admin-product-head">
         <div>
           <p className="eyebrow">Posts</p>
-          <h1>{isEdit ? "글 수정" : "새 글"}</h1>
+          <h1>{isEdit ? `${post?.contentType === "page" ? "페이지" : "글"} 수정` : "새 콘텐츠"}</h1>
         </div>
-        <Link href="/loginpage/posts" className="action-button secondary-button">글 목록</Link>
+        <div className="admin-page-actions">
+          {post?.publicationStatus === "published" && post.visibility !== "private" ? (
+            <Link href={post.path} target="_blank" className="action-button secondary-button">공개 화면 보기</Link>
+          ) : null}
+          <Link href="/loginpage/posts" className="action-button secondary-button">콘텐츠 목록</Link>
+        </div>
       </div>
 
       {copied ? <p className="success-text">복사본을 비공개 초안으로 만들었습니다. 주소와 제목을 확인한 뒤 발행하세요.</p> : null}
@@ -39,6 +44,7 @@ export function AdminPostForm({
 
       <form action={savePostAction} className="admin-form-grid">
         {post ? <input type="hidden" name="id" value={post.id} /> : null}
+        {post?.sourceId !== null && post?.sourceId !== undefined ? <input type="hidden" name="sourceId" value={post.sourceId} /> : null}
         <input type="hidden" name="publicationStatus" value={post?.publicationStatus ?? "draft"} />
         <input type="hidden" name="returnTo" value={post ? `/loginpage/posts/edit/${post.id}` : "/loginpage/posts/new"} />
 
@@ -48,6 +54,20 @@ export function AdminPostForm({
         </label>
 
         <div className="admin-post-fields-grid field-wide">
+          <label className="field">
+            <span>콘텐츠 유형</span>
+            {post?.sourceId !== null && post?.sourceId !== undefined ? (
+              <>
+                <input type="hidden" name="contentType" value={post.contentType} />
+                <input value={post.contentType === "page" ? "페이지 — 원본 유형 유지" : "글 — 원본 유형 유지"} disabled />
+              </>
+            ) : (
+              <select name="contentType" defaultValue={post?.contentType ?? "post"}>
+                <option value="post">글 — 홈 글 목록에 표시 가능</option>
+                <option value="page">페이지 — 고정 주소 콘텐츠</option>
+              </select>
+            )}
+          </label>
           <label className="field">
             <span>슬러그</span>
             <input name="slug" defaultValue={post?.slug} placeholder="비우면 제목에서 자동 생성" />
@@ -62,7 +82,7 @@ export function AdminPostForm({
         <label className="field field-wide">
           <span>직접 경로</span>
           <input name="path" defaultValue={post?.path} placeholder="/2026/07/sample-post" />
-          <small>주소를 바꾸면 기존 주소는 자동 리다이렉트되지 않으므로 발행 전 확정하는 편이 안전합니다.</small>
+          <small>페이지는 보통 `/terms`, 글은 `/2026/07/sample-post` 형식입니다. 주소 변경 시 기존 주소는 자동 리다이렉트되지 않습니다.</small>
         </label>
 
         <section className="admin-publishing-box field-wide" aria-labelledby="publishing-heading">
@@ -86,7 +106,7 @@ export function AdminPostForm({
           <div className="admin-post-surface-options">
             <label className="admin-checkbox">
               <input type="checkbox" name="listedInArchive" defaultChecked={post?.listedInArchive ?? true} />
-              <span>홈·글 목록에 표시</span>
+              <span>홈·글 목록에 표시(글만 적용)</span>
             </label>
             <label className="admin-checkbox">
               <input type="checkbox" name="listedInSearch" defaultChecked={post?.listedInSearch ?? true} />
@@ -116,7 +136,6 @@ export function AdminPostForm({
           name="contentHtml"
           initialHtml={post?.contentHtml}
           minHeight={420}
-          required
           draftStorageKey={`${draftKey}-content`}
         />
 

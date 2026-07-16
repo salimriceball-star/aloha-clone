@@ -1,6 +1,6 @@
-# Admin Editor and Post Publishing
+# Admin Editor and Content Publishing
 
-- 글 목록은 `/loginpage/posts`, 새 글은 `/loginpage/posts/new`, 한 글 편집은 `/loginpage/posts/edit/[id]`를 사용한다.
+- 글·페이지 목록은 `/loginpage/posts`, 새 콘텐츠는 `/loginpage/posts/new`, 한 콘텐츠 편집은 `/loginpage/posts/edit/[id]`를 사용한다.
 - 상품 편집 화면은 `/loginpage/products/common`, `/loginpage/products/edit/[slug]` 기준으로 동일한 공용 에디터를 사용한다.
 - 에디터 컴포넌트: `/home/ahn/aloha/components/admin-html-editor.tsx`
 - 업로드 API: `/home/ahn/aloha/app/api/admin/uploads/route.ts`
@@ -55,6 +55,14 @@
 - 필수 상품 쓰기를 예외 전파 방식으로 분리하고, 실패 UI·짧은 읽기 재시도·제출 직전 HTML 동기화를 적용했다
 
 ## Post Workflow
+
+- 첫 관리자 진입 시 배포에 포함된 WordPress 원본 글 16개, 페이지 18개와 홈 설정을 `clone_posts`에 누락분만 편입한다.
+- 편입은 `(content_type, source_id)`로 추적하며 기존 DB 경로나 사용자가 수정한 레코드는 덮어쓰지 않는다.
+- `글`은 홈 아카이브 노출을 선택할 수 있고, `페이지`는 `/terms` 같은 고정 주소로 관리한다.
+- 홈은 `페이지 · /` 레코드로 제목과 상단 안내 본문을 편집하며 글 목록 자체는 계속 자동 생성한다.
+- 상품과 상점 상품 목록은 글·페이지 카탈로그에 섞지 않고 상품 관리에서 유지한다.
+- 기존 WordPress 원본은 유형을 고정해 글↔페이지 전환으로 원본이 중복 복원되는 것을 방지한다. 새 콘텐츠와 복사본은 유형을 선택할 수 있다.
+- 페이지 변경도 공개 화면, 사이트 검색, sitemap, robots metadata에 반영된다.
 
 - `초안`: 관리자에서만 존재하며 URL을 알아도 공개 요청은 404
 - `발행`: 발행일시가 현재 이전일 때 공개 가능

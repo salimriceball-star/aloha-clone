@@ -3,6 +3,8 @@ import type { StoredOrder, StoredOrderItem } from "@/lib/purchase-flow";
 
 export type AdminPostRecord = {
   id: number;
+  contentType: "post" | "page";
+  sourceId: number | null;
   slug: string;
   path: string;
   title: string;
@@ -64,6 +66,27 @@ type AdminOrderInput = StoredOrder & {
 function normalizeNullableText(value: string | null | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function mapAdminPost(row: Record<string, unknown>) {
+  return {
+    id: Number(row.id),
+    contentType: row.content_type === "page" ? "page" : "post",
+    sourceId: row.source_id === null || row.source_id === undefined ? null : Number(row.source_id),
+    slug: String(row.slug),
+    path: String(row.path),
+    title: String(row.title),
+    excerptHtml: String(row.excerpt_html ?? ""),
+    contentHtml: String(row.content_html ?? ""),
+    publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
+    visibility: row.visibility as AdminPostRecord["visibility"],
+    accessPassword: row.access_password === null ? null : String(row.access_password),
+    listedInArchive: Boolean(row.listed_in_archive),
+    publicationStatus: row.publication_status === "draft" ? "draft" : "published",
+    listedInSearch: Boolean(row.listed_in_search),
+    allowIndexing: Boolean(row.allow_indexing),
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+  } as AdminPostRecord;
 }
 
 function toNumberOrNull(value: number | string | null | undefined) {
@@ -133,42 +156,43 @@ function mapStoredOrder(
   } as AdminOrderRecord;
 }
 
-export async function listAdminPosts() {
+async function listAdminContentByType(contentType?: AdminPostRecord["contentType"]) {
   return withAdminDb(async (pool) => {
     const result = await pool.query(
       `
-        select id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
-               listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+        select id, content_type, source_id, slug, path, title, excerpt_html, content_html, published_at,
+               visibility, access_password, listed_in_archive, publication_status, listed_in_search,
+               allow_indexing, updated_at
         from clone_posts
+        where ($1::text is null or content_type = $1)
         order by published_at desc, id desc
-      `
+      `,
+      [contentType ?? null]
     );
 
-    return result.rows.map((row) => ({
-      id: Number(row.id),
-      slug: row.slug,
-      path: row.path,
-      title: row.title,
-      excerptHtml: row.excerpt_html,
-      contentHtml: row.content_html,
-      publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
-      visibility: row.visibility,
-      accessPassword: row.access_password,
-      listedInArchive: Boolean(row.listed_in_archive),
-      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
-      listedInSearch: Boolean(row.listed_in_search),
-      allowIndexing: Boolean(row.allow_indexing),
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
-    })) as AdminPostRecord[];
+    return result.rows.map(mapAdminPost);
   }, [] as AdminPostRecord[]);
+}
+
+export async function listAdminContent() {
+  return listAdminContentByType();
+}
+
+export async function listAdminPosts() {
+  return listAdminContentByType("post");
+}
+
+export async function listAdminPages() {
+  return listAdminContentByType("page");
 }
 
 export async function getAdminPostById(id: number) {
   return withAdminDb(async (pool) => {
     const result = await pool.query(
       `
-        select id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
-               listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+        select id, content_type, source_id, slug, path, title, excerpt_html, content_html, published_at,
+               visibility, access_password, listed_in_archive, publication_status, listed_in_search,
+               allow_indexing, updated_at
         from clone_posts
         where id = $1
         limit 1
@@ -177,22 +201,7 @@ export async function getAdminPostById(id: number) {
     );
     const row = result.rows[0];
     if (!row) return null as AdminPostRecord | null;
-    return {
-      id: Number(row.id),
-      slug: row.slug,
-      path: row.path,
-      title: row.title,
-      excerptHtml: row.excerpt_html,
-      contentHtml: row.content_html,
-      publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
-      visibility: row.visibility,
-      accessPassword: row.access_password,
-      listedInArchive: Boolean(row.listed_in_archive),
-      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
-      listedInSearch: Boolean(row.listed_in_search),
-      allowIndexing: Boolean(row.allow_indexing),
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
-    } as AdminPostRecord;
+    return mapAdminPost(row);
   }, null as AdminPostRecord | null);
 }
 
@@ -210,7 +219,9 @@ export async function saveAdminPost(input: AdminPostInput) {
       input.listedInArchive,
       input.publicationStatus,
       input.listedInSearch,
-      input.allowIndexing
+      input.allowIndexing,
+      input.contentType,
+      input.sourceId
     ];
     const result = input.id
       ? await pool.query(
@@ -228,10 +239,13 @@ export async function saveAdminPost(input: AdminPostInput) {
                 publication_status = $10,
                 listed_in_search = $11,
                 allow_indexing = $12,
+                content_type = $13,
+                source_id = $14,
                 updated_at = now()
-            where id = $13
-            returning id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
-                      listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+            where id = $15
+            returning id, content_type, source_id, slug, path, title, excerpt_html, content_html,
+                      published_at, visibility, access_password, listed_in_archive, publication_status,
+                      listed_in_search, allow_indexing, updated_at
           `,
           [...values, input.id]
         )
@@ -239,9 +253,9 @@ export async function saveAdminPost(input: AdminPostInput) {
           `
         insert into clone_posts (
           slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
-          listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+          listed_in_archive, publication_status, listed_in_search, allow_indexing, content_type, source_id, updated_at
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
         on conflict (path) do update
         set
           slug = excluded.slug,
@@ -255,31 +269,69 @@ export async function saveAdminPost(input: AdminPostInput) {
           publication_status = excluded.publication_status,
           listed_in_search = excluded.listed_in_search,
           allow_indexing = excluded.allow_indexing,
+          content_type = excluded.content_type,
+          source_id = coalesce(clone_posts.source_id, excluded.source_id),
           updated_at = now()
-        returning id, slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
-                  listed_in_archive, publication_status, listed_in_search, allow_indexing, updated_at
+        returning id, content_type, source_id, slug, path, title, excerpt_html, content_html,
+                  published_at, visibility, access_password, listed_in_archive, publication_status,
+                  listed_in_search, allow_indexing, updated_at
       `,
           values
         );
 
     const row = result.rows[0];
-    return {
-      id: Number(row.id),
-      slug: row.slug,
-      path: row.path,
-      title: row.title,
-      excerptHtml: row.excerpt_html,
-      contentHtml: row.content_html,
-      publishedAt: row.published_at instanceof Date ? row.published_at.toISOString() : String(row.published_at),
-      visibility: row.visibility,
-      accessPassword: row.access_password,
-      listedInArchive: Boolean(row.listed_in_archive),
-      publicationStatus: row.publication_status === "draft" ? "draft" : "published",
-      listedInSearch: Boolean(row.listed_in_search),
-      allowIndexing: Boolean(row.allow_indexing),
-      updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
-    } as AdminPostRecord;
+    return mapAdminPost(row);
   }, null as AdminPostRecord | null);
+}
+
+export async function seedAdminContent(inputs: AdminPostInput[]) {
+  if (inputs.length === 0) return 0;
+
+  return withRequiredAdminDb(async (pool) => {
+    const client = await pool.connect();
+    let inserted = 0;
+    try {
+      await client.query("begin");
+      for (const input of inputs) {
+        const result = await client.query(
+          `
+            insert into clone_posts (
+              slug, path, title, excerpt_html, content_html, published_at, visibility, access_password,
+              listed_in_archive, publication_status, listed_in_search, allow_indexing,
+              content_type, source_id, updated_at
+            )
+            values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, now())
+            on conflict do nothing
+            returning id
+          `,
+          [
+            input.slug,
+            input.path,
+            input.title,
+            input.excerptHtml,
+            input.contentHtml,
+            input.publishedAt,
+            input.visibility,
+            normalizeNullableText(input.accessPassword),
+            input.listedInArchive,
+            input.publicationStatus,
+            input.listedInSearch,
+            input.allowIndexing,
+            input.contentType,
+            input.sourceId
+          ]
+        );
+        inserted += result.rowCount ?? 0;
+      }
+      await client.query("commit");
+      return inserted;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
 }
 
 export async function listAdminProductOverrides() {
