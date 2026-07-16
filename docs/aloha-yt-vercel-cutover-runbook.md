@@ -207,16 +207,18 @@ npm run vercel:cli -- domains add www.aloha-yt.xyz aloha-clone
 npm run vercel:cli -- domains add aloha-yt.xyz aloha-clone
 npm run vercel:cli -- domains inspect www.aloha-yt.xyz
 npm run vercel:cli -- domains inspect aloha-yt.xyz
+npm run vercel:cli -- domains verify www.aloha-yt.xyz
+npm run vercel:cli -- domains verify aloha-yt.xyz
 ```
 
-`already exists`가 나오면 삭제하지 말고 이어지는 `domains inspect` 결과를 사용한다. 다른 Vercel 계정 소유라고 나오면 표시된 TXT verification 레코드를 Namecheap `Advanced DNS`에 먼저 추가하고 `inspect`를 다시 실행한다.
+`already exists`가 나오면 삭제하지 말고 이어지는 `domains inspect`/`verify` 결과를 사용한다. 다른 Vercel 계정 소유라고 나오면 표시된 TXT verification 레코드를 Namecheap `Advanced DNS`에 먼저 추가하고 `verify`를 다시 실행한다.
 
-두 `inspect` 결과에서 요구하는 레코드 type과 값을 메모한다. Vercel은 상황에 따라 `www`에도 CNAME 대신 A를 제시할 수 있다.
+`domains verify`의 최신 `Recommended change`를 최종 기준으로 삼는다. 최초 `inspect`가 범용 A를 제시한 뒤 `verify`가 도메인 전용 CNAME을 제시할 수 있으며, 이 경우 CNAME이 우선이다.
 
 ```text
-WWW_DNS_TYPE=Vercel inspect가 표시한 www record type
-WWW_DNS_VALUE=Vercel inspect가 표시한 www record value
-APEX_A_VALUE=Vercel inspect가 표시한 apex A 값
+WWW_DNS_TYPE=Vercel verify가 표시한 www Recommended record type
+WWW_DNS_VALUE=Vercel verify가 표시한 www Recommended record value
+APEX_A_VALUE=Vercel verify가 표시한 apex Recommended A 값
 ```
 
 인터넷 예제에 나온 IP/CNAME을 사용하지 않는다. 반드시 현재 프로젝트의 `inspect` 출력값을 복사한다.
@@ -231,9 +233,9 @@ Namecheap에서:
 
 1. `Domain List → aloha-yt.xyz → Manage → Advanced DNS`
 2. `Host Records → Add New Record`
-3. Type은 6단계의 `WWW_DNS_TYPE`과 동일하게 선택. 현재 Vercel 출력이 `A www.aloha-yt.xyz 76.76.21.21`이면 `A Record` 선택
+3. Type은 6단계의 최신 `domains verify` 권고와 동일하게 선택. 기존 `www` A가 있고 최신 권고가 CNAME이면 A를 먼저 삭제한 뒤 `CNAME Record` 선택
 4. Host `www`
-5. Value에 6단계의 `WWW_DNS_VALUE`를 붙여넣기. 현재 출력 기준 `76.76.21.21`
+5. Value에 6단계의 `WWW_DNS_VALUE`를 붙여넣기. 2026-07-16 현재 출력 기준 `999e5f70628cc2af.vercel-dns-017.com.`
 6. TTL `Automatic` 또는 `5 min`
 7. 저장
 
@@ -252,6 +254,8 @@ DNS 전파 중에는 실패할 수 있다. 5분 후 다시 실행한다. 합격 
 - `www가 Vercel 응답` PASS
 
 `www`가 301/308이면 Vercel에서 apex redirect가 너무 일찍 설정된 것이다. Domain 설정에서 임시로 같은 Production deployment alias로 되돌린 뒤 canary를 다시 검사한다.
+
+기존 A의 TTL이 Automatic(약 1800초)이었다면 CNAME으로 바꾼 뒤 최대 약 30분 동안 일부 resolver가 이전 A를 보여줄 수 있다. CNAME이 공용 DNS에 나타난 뒤에도 Vercel TLS 발급에 수분이 더 걸릴 수 있다.
 
 ## 8. apex를 Lightsail에서 Vercel로 전환
 

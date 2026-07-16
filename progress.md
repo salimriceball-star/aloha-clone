@@ -24,3 +24,5 @@
 - [x] lint·shell/docs QA·memory·commit·push
 - [x] Vercel 실제 www A-record 권고 대응과 canary A/CNAME 호환
 - [x] canary patch QA·memory·commit·push
+- [x] verify 전용 CNAME 우선·TLS 미발급 진단 반영
+- [x] verify-CNAME patch QA·memory·commit·push

@@ -75,7 +75,14 @@ case "$mode" in
     else
       fail "$www_domain A/CNAME 없음"
     fi
-    if tls_certificate "$www_domain"; then pass "$www_domain TLS 인증서 확인"; else fail "$www_domain TLS 인증서 실패"; fi
+    if tls_certificate "$www_domain"; then
+      pass "$www_domain TLS 인증서 확인"
+    else
+      fail "$www_domain TLS 인증서 실패"
+      if [[ -n "$a_record" ]]; then
+        printf 'HINT  npm run vercel:cli -- domains verify %s 의 최신 Recommended CNAME을 우선 적용하세요.\n' "$www_domain" >&2
+      fi
+    fi
     check_200 "https://$www_domain/"
     has_vercel_header "https://$www_domain/" && pass 'www가 Vercel 응답' || fail 'www x-vercel-id 헤더 없음'
     ;;
