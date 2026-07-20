@@ -127,10 +127,12 @@ export default async function ProductDetailPage({
             salePriceValue={product.salePriceValue}
           />
           <h1>{product.title}</h1>
-          <div className="star-row">
-            <span aria-hidden="true">★★★★★</span>
-            <span>{product.ratingValue ? `평점 ${product.ratingValue}` : "평점 미확인"}</span>
-          </div>
+          {product.ratingValue ? (
+            <div className="star-row">
+              <span aria-hidden="true">★★★★★</span>
+              <span>평점 {product.ratingValue}</span>
+            </div>
+          ) : null}
           <p className="product-price-hero">
             <ProductPriceContent
               priceText={product.priceText}
