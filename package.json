@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "ALOHA_SKIP_ADMIN_DB=1 next build",
     "build:guarded": "./scripts/run-guarded.sh npm run build",
     "start": "next start",
     "lint": "eslint .",

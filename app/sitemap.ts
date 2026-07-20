@@ -13,6 +13,8 @@ import {
 } from "@/lib/admin-store";
 import { getSiteUrl } from "@/lib/site-url";
 
+export const dynamic = "force-dynamic";
+
 type WpRendered = {
   rendered: string;
 };

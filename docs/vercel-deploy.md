@@ -16,9 +16,10 @@
 
 ## Build Notes
 
-- Production의 `npm run build`는 Supabase admin DB 연결을 필수로 사용한다. DB 연결이 실패하면 운영 배포도 실패해 비공개/숨김 속성이 누락된 페이지를 내보내지 않는다.
-- Vercel Preview와 GitHub CI는 `ALOHA_SKIP_ADMIN_DB=1`을 사용해 정적 원본 데이터로 빌드한다. Production의 Sensitive DB 비밀값을 Preview와 공유하지 않는 운영 선택이다.
-- Vercel에서 `ALOHA_SKIP_ADMIN_DB=1`은 Preview만 설정하고 Production에는 절대 설정하지 않는다.
+- `npm run build`는 빌드 과정에서만 `ALOHA_SKIP_ADMIN_DB=1`을 사용해 Supabase 일시 지연이 Vercel 배포를 막지 않게 한다.
+- 배포된 Production 런타임에는 이 값이 없으므로, 실제 요청과 ISR은 Supabase admin DB를 필수로 사용하고 연결 실패 시 기존 캐시를 유지한다.
+- `sitemap.xml`은 동적으로 생성해 비공개/숨김 속성을 런타임 DB에서 확인한다.
+- Vercel Preview에는 Production의 Sensitive DB 비밀값을 공유하지 않는다.
 - 데이터 파일 경로는 `process.cwd()` 기준 상대 경로를 사용한다.
 
 ## Runtime Secrets
