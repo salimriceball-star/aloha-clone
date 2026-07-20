@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { bulkUpdateProductAction, duplicateProductAction } from "@/app/admin/actions";
 import { PaginationNav } from "@/components/pagination-nav";
 import { ProductPriceContent } from "@/components/product-price-content";
+import { getAdminDbHealthStatus } from "@/lib/admin-db";
 import { getProducts } from "@/lib/site-data";
 
 const adminProductPageSize = 24;
@@ -47,7 +48,10 @@ export async function AdminProductsIndex({
     error?: string;
   };
 }) {
-  const products = await getProducts({ includeHidden: true, includePrivate: true });
+  const [products, dbHealth] = await Promise.all([
+    getProducts({ includeHidden: true, includePrivate: true, allowAdminDbFallback: true }),
+    getAdminDbHealthStatus()
+  ]);
   const totalPages = Math.max(1, Math.ceil(products.length / adminProductPageSize));
 
   if (currentPage < 1 || currentPage > totalPages) {
@@ -79,6 +83,12 @@ export async function AdminProductsIndex({
         <p className="plain-copy">
           전체 {products.length}개 상품 중 {start + 1} - {Math.min(products.length, start + pageProducts.length)}번을 보고 있습니다.
         </p>
+
+        {!dbHealth.available ? (
+          <p className="warning-text">
+            Supabase DB에 연결하지 못해 저장된 상품 변경사항을 불러오지 못했습니다. 아래에는 원본 상품만 표시될 수 있으며, 연결이 복구될 때까지 편집하지 마세요.
+          </p>
+        ) : null}
 
         {searchParams.bulkSaved ? (
           <p className="inline-note">{searchParams.bulkSaved}개 상품 상태를 저장했습니다.</p>

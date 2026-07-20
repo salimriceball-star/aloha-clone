@@ -4,10 +4,13 @@ import { cache } from "react";
 
 import {
   getAdminSetting,
-  listAdminContent,
+  listAdminContentRequired,
   listAdminPages,
+  listAdminPagesRequired,
   listAdminPosts,
+  listAdminPostsRequired,
   listAdminProductOverrides,
+  listAdminProductOverridesRequired,
   seedAdminContent,
   type AdminPostInput,
   type AdminPostRecord,
@@ -251,6 +254,24 @@ export type SiteMeta = {
 };
 
 const productCommonIntroSettingKey = "product_common_intro_html";
+
+function allowStaticAdminDbFallback() {
+  return process.env.ALOHA_SKIP_ADMIN_DB === "1";
+}
+
+function listPublicAdminPosts() {
+  return allowStaticAdminDbFallback() ? listAdminPosts() : listAdminPostsRequired();
+}
+
+function listPublicAdminPages() {
+  return allowStaticAdminDbFallback() ? listAdminPages() : listAdminPagesRequired();
+}
+
+function listPublicAdminProductOverrides() {
+  return allowStaticAdminDbFallback()
+    ? listAdminProductOverrides()
+    : listAdminProductOverridesRequired();
+}
 
 const readJson = cache(async <T>(filename: string): Promise<T> => {
   const raw = await readFile(`${exportDir}/${filename}`, "utf8");
@@ -570,7 +591,7 @@ const getMergedPosts = cache(async () => {
   const [sourcePosts, protectedPosts, adminPosts] = await Promise.all([
     getSourcePosts(),
     getSourceProtectedPosts(),
-    listAdminPosts()
+    listPublicAdminPosts()
   ]);
 
   const adminEntries = adminPosts.map(mapAdminPostToEntry);
@@ -898,8 +919,12 @@ const getSourceProducts = cache(async (): Promise<ProductEntry[]> => {
 export async function getProducts(options?: {
   includeHidden?: boolean;
   includePrivate?: boolean;
+  allowAdminDbFallback?: boolean;
 }): Promise<ProductEntry[]> {
-  const [products, overrides] = await Promise.all([getSourceProducts(), listAdminProductOverrides()]);
+  const [products, overrides] = await Promise.all([
+    getSourceProducts(),
+    options?.allowAdminDbFallback ? listAdminProductOverrides() : listPublicAdminProductOverrides()
+  ]);
   const overrideBySourceId = new Map(
     overrides
       .filter((override) => override.sourceProductId !== null)
@@ -937,7 +962,7 @@ export async function getProductBySlug(slug: string, options?: {
   const normalizedSlug = normalizeSlug(slug);
   const [{ productsPayload, detailsBySlug, visibleSlugs }, overrides] = await Promise.all([
     getSourceProductData(),
-    listAdminProductOverrides()
+    listPublicAdminProductOverrides()
   ]);
   const requestedOverride = overrides.find((override) => normalizeSlug(override.slug) === normalizedSlug);
   const sourceRecord = requestedOverride?.sourceProductId
@@ -967,7 +992,7 @@ export async function getProductBySlug(slug: string, options?: {
 export async function getProductAliasTarget(slug: string) {
   const normalizedSlug = normalizeSlug(slug);
   const productsPayload = await readJson<WpPaged<RawPost>>("products.json");
-  const overrides = await listAdminProductOverrides();
+  const overrides = await listPublicAdminProductOverrides();
   const source = productsPayload.records.find((product) => normalizeSlug(product.slug) === normalizedSlug);
   const override = source
     ? overrides.find((candidate) => candidate.sourceProductId === source.id) ??
@@ -1049,7 +1074,7 @@ function mapAdminPageToEntry(page: AdminPostRecord): PageEntry {
 }
 
 export const getPages = cache(async (): Promise<PageEntry[]> => {
-  const [sourcePages, adminPages] = await Promise.all([getSourcePages(), listAdminPages()]);
+  const [sourcePages, adminPages] = await Promise.all([getSourcePages(), listPublicAdminPages()]);
   const overriddenSourceIds = new Set(
     adminPages.flatMap((page) => (page.sourceId === null ? [] : [page.sourceId]))
   );
@@ -1151,7 +1176,7 @@ const getSourceContentSeed = cache(async (): Promise<AdminPostInput[]> => {
 });
 
 export async function ensureAdminContentCatalog() {
-  const [sourceContent, existing] = await Promise.all([getSourceContentSeed(), listAdminContent()]);
+  const [sourceContent, existing] = await Promise.all([getSourceContentSeed(), listAdminContentRequired()]);
   const existingSourceKeys = new Set(
     existing.flatMap((record) =>
       record.sourceId === null ? [] : [`${record.contentType}:${record.sourceId}`]
@@ -1167,7 +1192,7 @@ export async function ensureAdminContentCatalog() {
 
   if (missing.length === 0) return existing;
   await seedAdminContent(missing);
-  return listAdminContent();
+  return listAdminContentRequired();
 }
 
 export async function getHomeSnapshot() {

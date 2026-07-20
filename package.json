@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "ALOHA_SKIP_ADMIN_DB=1 next build",
+    "build": "next build",
     "build:guarded": "./scripts/run-guarded.sh npm run build",
     "start": "next start",
     "lint": "eslint .",
     "lint:guarded": "./scripts/run-guarded.sh npm run lint",
+    "typecheck": "tsc --noEmit --incremental false",
     "audit:site": "tsx scripts/site-audit.ts",
     "audit:seo": "tsx scripts/seo-audit.ts",
     "backup:supabase": "bash scripts/backup-supabase.sh",

@@ -174,16 +174,46 @@ async function listAdminContentByType(contentType?: AdminPostRecord["contentType
   }, [] as AdminPostRecord[]);
 }
 
+async function listAdminContentByTypeRequired(contentType?: AdminPostRecord["contentType"]) {
+  return withRequiredAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        select id, content_type, source_id, slug, path, title, excerpt_html, content_html, published_at,
+               visibility, access_password, listed_in_archive, publication_status, listed_in_search,
+               allow_indexing, updated_at
+        from clone_posts
+        where ($1::text is null or content_type = $1)
+        order by published_at desc, id desc
+      `,
+      [contentType ?? null]
+    );
+
+    return result.rows.map(mapAdminPost);
+  });
+}
+
 export async function listAdminContent() {
   return listAdminContentByType();
+}
+
+export async function listAdminContentRequired() {
+  return listAdminContentByTypeRequired();
 }
 
 export async function listAdminPosts() {
   return listAdminContentByType("post");
 }
 
+export async function listAdminPostsRequired() {
+  return listAdminContentByTypeRequired("post");
+}
+
 export async function listAdminPages() {
   return listAdminContentByType("page");
+}
+
+export async function listAdminPagesRequired() {
+  return listAdminContentByTypeRequired("page");
 }
 
 export async function getAdminPostById(id: number) {
@@ -348,6 +378,20 @@ export async function listAdminProductOverrides() {
   }, [] as AdminProductOverride[]);
 }
 
+export async function listAdminProductOverridesRequired() {
+  return withRequiredAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        select id, source_product_id, slug, title, excerpt_html, content_html, image_url, regular_price, sale_price, visibility, stock_state, updated_at
+        from clone_products
+        order by slug asc
+      `
+    );
+
+    return result.rows.map(mapAdminProductOverride);
+  });
+}
+
 export async function saveAdminProductOverride(input: AdminProductInput) {
   return withRequiredAdminDb(async (pool) => {
     const values = [
@@ -435,12 +479,33 @@ export async function listAdminAssets() {
   }, [] as AdminAssetRecord[]);
 }
 
+export async function listAdminAssetsRequired() {
+  return withRequiredAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        select id, public_id, secure_url, original_filename, created_at
+        from clone_assets
+        order by created_at desc, id desc
+        limit 40
+      `
+    );
+
+    return result.rows.map((row) => ({
+      id: Number(row.id),
+      publicId: row.public_id,
+      secureUrl: row.secure_url,
+      originalFilename: row.original_filename,
+      createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at)
+    })) as AdminAssetRecord[];
+  });
+}
+
 export async function saveAdminAsset(input: {
   publicId: string;
   secureUrl: string;
   originalFilename: string | null;
 }) {
-  return withAdminDb(async (pool) => {
+  return withRequiredAdminDb(async (pool) => {
     const result = await pool.query(
       `
         insert into clone_assets (public_id, secure_url, original_filename)
@@ -461,7 +526,7 @@ export async function saveAdminAsset(input: {
       originalFilename: row.original_filename,
       createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at)
     } as AdminAssetRecord;
-  }, null as AdminAssetRecord | null);
+  });
 }
 
 export async function getAdminSetting(key: string) {
@@ -490,7 +555,7 @@ export async function getAdminSetting(key: string) {
 }
 
 export async function saveAdminSetting(input: { key: string; value: string }) {
-  return withAdminDb(async (pool) => {
+  return withRequiredAdminDb(async (pool) => {
     const result = await pool.query(
       `
         insert into clone_settings (key, value, updated_at)
@@ -509,7 +574,7 @@ export async function saveAdminSetting(input: { key: string; value: string }) {
       value: row.value,
       updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
     } as AdminSettingRecord;
-  }, null as AdminSettingRecord | null);
+  });
 }
 
 export async function saveAdminOrder(input: AdminOrderInput) {

@@ -9,15 +9,16 @@
 ## Recommended Settings
 
 - framework: `Next.js`
-- install command: `npm install`
+- install command: `npm ci`
 - build command: `npm run build`
-- runtime node: `20.x`
+- runtime node: `24.x`
 - root directory: `/`
 
 ## Build Notes
 
-- `npm run build` 는 정적 빌드 중 `ALOHA_SKIP_ADMIN_DB=1` 로 동작한다.
-- 이유: 공개 페이지 SSG 중에는 Supabase admin DB를 건너뛰고, 런타임/관리자 액션에서만 DB를 사용한다.
+- Production의 `npm run build`는 Supabase admin DB 연결을 필수로 사용한다. DB 연결이 실패하면 운영 배포도 실패해 비공개/숨김 속성이 누락된 페이지를 내보내지 않는다.
+- Vercel Preview와 GitHub CI는 `ALOHA_SKIP_ADMIN_DB=1`을 사용해 정적 원본 데이터로 빌드한다. Production의 Sensitive DB 비밀값을 Preview와 공유하지 않는 운영 선택이다.
+- Vercel에서 `ALOHA_SKIP_ADMIN_DB=1`은 Preview만 설정하고 Production에는 절대 설정하지 않는다.
 - 데이터 파일 경로는 `process.cwd()` 기준 상대 경로를 사용한다.
 
 ## Runtime Secrets
@@ -36,7 +37,7 @@
 
 - `npm run vercel:configure-env -- --deploy`
 - `npm run cutover:check -- baseline`
-- `MAX_TREE_RSS_MB=1500 MIN_AVAILABLE_MB=700 ./scripts/run-guarded.sh npm run build`
+- `MAX_TREE_RSS_MB=6000 MIN_AVAILABLE_MB=5000 ./scripts/run-guarded.sh npm run build`
 - `./scripts/run-guarded.sh npm run lint`
 - local preview 기동 후 `./scripts/run-guarded.sh npx tsx scripts/browseros-targeted-qa.ts`
 
@@ -45,7 +46,7 @@
 - GitHub repo 생성 완료
 - 로컬 git origin 연결 완료
 - Vercel project 생성 및 GitHub repo 연결 완료
-- Vercel runtime node `20.x` 반영 완료
+- Vercel runtime Node `24.x` 전환 설정 반영
 - Vercel 환경변수 존재. 2026-07-16 기준 final-domain canonical 갱신은 `vercel:configure-env -- --deploy` 실행 필요
 - guarded `lint` / `build` 통과
 - BrowserOS targeted QA 통과:

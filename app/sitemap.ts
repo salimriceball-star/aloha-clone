@@ -3,7 +3,14 @@ import path from "node:path";
 
 import type { MetadataRoute } from "next";
 
-import { listAdminPages, listAdminPosts, listAdminProductOverrides } from "@/lib/admin-store";
+import {
+  listAdminPages,
+  listAdminPagesRequired,
+  listAdminPosts,
+  listAdminPostsRequired,
+  listAdminProductOverrides,
+  listAdminProductOverridesRequired
+} from "@/lib/admin-store";
 import { getSiteUrl } from "@/lib/site-url";
 
 type WpRendered = {
@@ -98,6 +105,7 @@ async function readJson<T>(filename: string): Promise<T> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const allowStaticFallback = process.env.ALOHA_SKIP_ADMIN_DB === "1";
   const [siteMeta, postsPayload, pagesPayload, productsPayload, visibilityPayload, adminPosts, adminPages, adminProductOverrides] =
     await Promise.all([
       readJson<SiteMeta>("site-meta.json"),
@@ -105,9 +113,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       readJson<WpPaged<RawPage>>("pages.json"),
       readJson<WpPaged<RawProduct>>("products.json"),
       readJson<ShopVisibilityPayload>("shop-visibility.json"),
-      listAdminPosts(),
-      listAdminPages(),
-      listAdminProductOverrides()
+      allowStaticFallback ? listAdminPosts() : listAdminPostsRequired(),
+      allowStaticFallback ? listAdminPages() : listAdminPagesRequired(),
+      allowStaticFallback ? listAdminProductOverrides() : listAdminProductOverridesRequired()
     ]);
 
   const baseUrl = getSiteUrl(siteMeta.home);

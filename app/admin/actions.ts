@@ -175,11 +175,14 @@ export async function setPostPublicationAction(formData: FormData) {
   if (!post) {
     redirect("/loginpage/posts?error=missing");
   }
-  await saveAdminPost({
+  const savedPost = await saveAdminPost({
     ...post,
     id: post.id,
     publicationStatus
   });
+  if (!savedPost) {
+    redirect("/loginpage/posts?error=save");
+  }
   revalidatePath("/");
   revalidatePath("/page/[page]", "page");
   revalidatePath("/column");
@@ -301,10 +304,15 @@ export async function saveProductCommonIntroAction(formData: FormData) {
   await requireAdminSession();
   const returnTo = String(formData.get("returnTo") ?? "");
 
-  await saveAdminSetting({
-    key: productCommonIntroSettingKey,
-    value: String(formData.get("value") ?? "")
-  });
+  try {
+    await saveAdminSetting({
+      key: productCommonIntroSettingKey,
+      value: String(formData.get("value") ?? "")
+    });
+  } catch (error) {
+    console.error("[save-product-common-intro]", error instanceof Error ? error.message : "Unknown database error");
+    redirect(buildRedirectPath(returnTo, "/loginpage/products/common", { error: "save" }));
+  }
 
   revalidatePath("/");
   revalidatePath("/shop");
@@ -387,6 +395,11 @@ export async function uploadAssetAction(formData: FormData) {
   }
 
   const folderOverride = String(formData.get("folder") ?? "").trim();
-  await uploadAdminFiles(files, folderOverride);
+  try {
+    await uploadAdminFiles(files, folderOverride);
+  } catch (error) {
+    console.error("[upload-asset]", error instanceof Error ? error.message : "Unknown upload error");
+    redirect("/loginpage/assets?error=save");
+  }
   redirect(`/loginpage/assets?uploaded=${files.length}`);
 }

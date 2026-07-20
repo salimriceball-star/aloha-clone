@@ -85,14 +85,22 @@ export async function uploadAdminFiles(files: UploadableFile[], folderOverride?:
       overwrite: false
     });
 
-    const saved = await saveAdminAsset({
-      publicId: upload.public_id,
-      secureUrl: upload.secure_url,
-      originalFilename: file.name || null
-    });
+    let saved;
+    try {
+      saved = await saveAdminAsset({
+        publicId: upload.public_id,
+        secureUrl: upload.secure_url,
+        originalFilename: file.name || null
+      });
+    } catch (error) {
+      console.error("[admin-upload-db]", error instanceof Error ? error.message : "Unknown database error");
+      throw new Error(
+        "Cloudinary 업로드는 완료됐지만 Supabase DB 기록 저장에 실패했습니다. 같은 파일을 다시 올리기 전에 Cloudinary에서 확인해 주세요."
+      );
+    }
 
     uploads.push({
-      id: saved?.id ?? 0,
+      id: saved.id,
       publicId: upload.public_id,
       secureUrl: upload.secure_url,
       originalFilename: file.name || null,

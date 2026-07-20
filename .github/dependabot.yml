@@ -8,8 +8,27 @@ updates:
       time: "03:00"
       timezone: Asia/Seoul
     open-pull-requests-limit: 5
+    # Routine updates stay low risk. Dependabot security updates are not
+    # restricted by these version-update rules.
+    allow:
+      - dependency-type: production
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+      - dependency-type: development
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
     groups:
       npm-production:
+        applies-to: version-updates
         dependency-type: production
+        update-types:
+          - minor
+          - patch
       npm-development:
+        applies-to: version-updates
         dependency-type: development
+        update-types:
+          - minor
+          - patch
