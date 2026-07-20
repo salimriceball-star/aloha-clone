@@ -144,7 +144,7 @@ npm run vercel:configure-env -- --deploy
 
 첫 실행 시:
 
-1. `.local`에 전용 Node 20+Vercel CLI를 한 번 설치한다. Git에는 포함되지 않는다.
+1. `.local`에 전용 Node 24+Vercel CLI를 설치하거나 갱신한다. Git에는 포함되지 않는다.
 2. 브라우저 로그인 화면이 뜨면 현재 Vercel 계정으로 승인한다.
 3. 프로젝트 연결 질문이 나오면 팀 `salimriceball-5026s-projects`를 선택한다.
 4. 기존 프로젝트 `aloha-clone`을 선택한다. 새 프로젝트를 만들지 않는다.

@@ -7,7 +7,7 @@ import { getProductCommonIntroHtml } from "@/lib/site-data";
 export default async function LoginpageProductCommonPage({
   searchParams
 }: {
-  searchParams: Promise<{ introSaved?: string }>;
+  searchParams: Promise<{ introSaved?: string; error?: string }>;
 }) {
   const [productCommonIntroHtml, params] = await Promise.all([getProductCommonIntroHtml(), searchParams]);
 
@@ -28,6 +28,9 @@ export default async function LoginpageProductCommonPage({
 
         <p className="plain-copy">모든 상품 상세 상단에 공통으로 들어가는 안내 영역입니다.</p>
         {params.introSaved === "1" ? <p className="inline-note">공통 안내가 저장되었습니다.</p> : null}
+        {params.error === "save" ? (
+          <p className="warning-text">Supabase DB에 연결하지 못해 공통 안내를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
+        ) : null}
 
         <form action={saveProductCommonIntroAction} className="admin-form-grid">
           <input type="hidden" name="returnTo" value="/loginpage/products/common" />

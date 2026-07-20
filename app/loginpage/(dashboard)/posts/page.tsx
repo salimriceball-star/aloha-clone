@@ -15,7 +15,13 @@ export default async function LoginpagePostsPage({
 }: {
   searchParams: Promise<{ q?: string; saved?: string; status?: string; error?: string }>;
 }) {
-  const [posts, params] = await Promise.all([ensureAdminContentCatalog(), searchParams]);
+  const params = await searchParams;
+  let databaseAvailable = true;
+  const posts = await ensureAdminContentCatalog().catch((error) => {
+    databaseAvailable = false;
+    console.error("[admin-posts-list]", error instanceof Error ? error.message : "Unknown database error");
+    return [];
+  });
   const query = params.q?.trim().toLocaleLowerCase("ko-KR") ?? "";
   const filteredPosts = query
     ? posts.filter((post) => `${post.title} ${post.slug} ${post.path}`.toLocaleLowerCase("ko-KR").includes(query))
@@ -36,6 +42,11 @@ export default async function LoginpagePostsPage({
         {params.saved ? <p className="success-text">글을 {params.saved === "published" ? "발행" : "초안 저장"}했습니다.</p> : null}
         {params.status ? <p className="success-text">발행 상태를 변경했습니다.</p> : null}
         {params.error ? <p className="warning-text">요청한 글 작업을 완료하지 못했습니다.</p> : null}
+        {!databaseAvailable ? (
+          <p className="warning-text">
+            Supabase DB에 연결하지 못해 글·페이지 목록을 불러오지 못했습니다. 현재 0개인 것이 아니므로 잠시 후 새로고침해 주세요.
+          </p>
+        ) : null}
 
         <form className="admin-post-filter" action="/loginpage/posts">
           <label className="field">
@@ -83,7 +94,9 @@ export default async function LoginpagePostsPage({
               </article>
             );
           })}
-          {filteredPosts.length === 0 ? <p className="empty-state">조건에 맞는 글 또는 페이지가 없습니다.</p> : null}
+          {databaseAvailable && filteredPosts.length === 0 ? (
+            <p className="empty-state">조건에 맞는 글 또는 페이지가 없습니다.</p>
+          ) : null}
         </div>
       </section>
     </section>

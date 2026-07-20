@@ -11,8 +11,13 @@ function connectionModeLabel(mode: Awaited<ReturnType<typeof getAdminDbHealthSta
 }
 
 export default async function LoginpageDashboardPage() {
+  let contentDatabaseAvailable = true;
   const [posts, products, assets, orders, dbHealth, siteMeta] = await Promise.all([
-    ensureAdminContentCatalog(),
+    ensureAdminContentCatalog().catch((error) => {
+      contentDatabaseAvailable = false;
+      console.error("[admin-dashboard-posts]", error instanceof Error ? error.message : "Unknown database error");
+      return [];
+    }),
     listAdminProductOverrides(),
     listAdminAssets(),
     listAdminOrders(12),
@@ -31,7 +36,7 @@ export default async function LoginpageDashboardPage() {
         <div className="stats-grid">
           <article className="stat-card">
             <span>글·페이지</span>
-            <strong>{posts.length}</strong>
+            <strong>{contentDatabaseAvailable && dbHealth.available ? posts.length : "확인 불가"}</strong>
           </article>
           <article className="stat-card">
             <span>상품 오버라이드</span>
@@ -50,6 +55,10 @@ export default async function LoginpageDashboardPage() {
             <strong>{dbHealth.available ? "정상" : "연결 실패"}</strong>
           </article>
         </div>
+
+        {!dbHealth.available ? (
+          <p className="warning-text">Supabase DB 연결 실패로 관리자 통계 일부를 불러오지 못했습니다. 0으로 표시된 값은 실제 데이터 수가 아닐 수 있습니다.</p>
+        ) : null}
 
         <div className="admin-inline-flags">
           <span>{connectionModeLabel(dbHealth.connectionMode)}</span>
