@@ -2086,8 +2086,23 @@ h6,
 }
 
 .footer-legal-block a {
-  color: inherit;
-  text-decoration: none;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(143, 47, 31, 0.45);
+  text-underline-offset: 3px;
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.footer-legal-block a:hover {
+  color: #6f2014;
+  text-decoration-color: currentColor;
+}
+
+.footer-legal-block a:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .footer-policy-links {
