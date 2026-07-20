@@ -18,7 +18,7 @@ export function ReviewList({ reviews }: ReviewListProps) {
             <strong>{review.author}</strong>
             <span>{review.date ? new Date(review.date).toLocaleDateString("ko-KR") : "날짜 미상"}</span>
           </div>
-          <p className="review-rating">{review.rating ? `평점 ${review.rating}` : "평점 미확인"}</p>
+          {review.rating ? <p className="review-rating">평점 {review.rating}</p> : null}
           <LinkifiedText className="review-body" text={review.body} />
         </article>
       ))}
