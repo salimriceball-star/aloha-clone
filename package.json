@@ -35,7 +35,8 @@
     "qa:browseros:guarded": "./scripts/run-guarded.sh npm run qa:browseros",
     "qa:admin-products": "tsx scripts/browseros-admin-products-qa.ts",
     "qa:protected": "tsx scripts/browseros-protected-posts-qa.ts",
-    "qa:protected:guarded": "./scripts/run-guarded.sh npm run qa:protected"
+    "qa:protected:guarded": "./scripts/run-guarded.sh npm run qa:protected",
+    "docs:frontend-review": "tsx scripts/generate-frontend-design-review.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.0",

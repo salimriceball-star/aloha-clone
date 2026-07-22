@@ -1,6 +1,14 @@
 # Progress
 
-현재 milestone: unified post/page admin catalog
+현재 milestone: zero-context frontend design review packet
+
+- [x] 공개·관리자 화면 범위와 디자인 관련 코드 의존성 인벤토리 작성
+- [x] 제로 컨텍스트 리뷰 목표·제약·평가 질문 작성
+- [x] 관련 소스 원문과 데이터 샘플을 단일 문서로 concat
+- [x] 문서 생성 재현 스크립트와 누락/비밀값 검사
+- [x] memory·commit·push
+
+이전 milestone: unified post/page admin catalog
 
 - [x] 관리자 0건 원인 확인: 정적 WordPress export와 Supabase 관리자 테이블 분리
 - [x] `clone_posts`에 글/페이지 유형과 원본 ID 추적 스키마 추가
