@@ -235,6 +235,29 @@ export async function getAdminPostById(id: number) {
   }, null as AdminPostRecord | null);
 }
 
+export async function getAdminPostByPathRequired(pathname: string) {
+  const normalizedPath = pathname === "/" ? "/" : `/${pathname.replace(/^\/+|\/+$/g, "")}`;
+  const pathVariants = normalizedPath === "/" ? [normalizedPath] : [normalizedPath, `${normalizedPath}/`];
+  const slug = normalizedPath.split("/").filter(Boolean).at(-1) ?? "";
+
+  return withRequiredAdminDb(async (pool) => {
+    const result = await pool.query(
+      `
+        select id, content_type, source_id, slug, path, title, excerpt_html, content_html, published_at,
+               visibility, access_password, listed_in_archive, publication_status, listed_in_search,
+               allow_indexing, updated_at
+        from clone_posts
+        where path = any($1::text[]) or ($2 <> '' and slug = $2)
+        order by case when path = any($1::text[]) then 0 else 1 end, id desc
+        limit 1
+      `,
+      [pathVariants, slug]
+    );
+    const row = result.rows[0];
+    return row ? mapAdminPost(row) : null;
+  });
+}
+
 export async function saveAdminPost(input: AdminPostInput) {
   return withAdminDb(async (pool) => {
     const values = [

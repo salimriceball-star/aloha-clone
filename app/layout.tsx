@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 
+import { AdminPublicToolbar } from "@/components/admin-public-toolbar";
 import { CartNavLink } from "@/components/storefront-client";
 import { StructuredData } from "@/components/structured-data";
 import { getSiteMeta } from "@/lib/site-data";
@@ -63,6 +64,7 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body>
+        <AdminPublicToolbar />
         <StructuredData
           data={{
             "@context": "https://schema.org",
