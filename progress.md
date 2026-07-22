@@ -7,7 +7,7 @@
 - [x] 전역 토큰·헤더·본문·상품 카드·접근성 개선
 - [x] 관리자 툴바·편집 저장 UX·결제 폼 개선
 - [x] 반응형·typecheck·lint·build·runtime QA
-- [ ] memory·commit·PR·Production 검증
+- [x] memory·commit·PR·Production 검증
 
 이전 milestone: zero-context frontend design review packet
 
