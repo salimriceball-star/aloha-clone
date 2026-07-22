@@ -87,18 +87,25 @@ export default async function RootLayout({
                   height={35}
                   className="brand-logo-image"
                 />
-                <span>{siteMeta.name}</span>
+                <span className="brand-name">{siteMeta.name}</span>
               </Link>
-              <nav className="site-nav">
-                <Link href="/">자주 묻는 질문</Link>
-                <Link href="/shop">상점</Link>
-                <CartNavLink />
+              <div className="site-header-right">
+                <nav className="site-nav" aria-label="주요 메뉴">
+                  <Link href="/">FAQ</Link>
+                  <Link href="/shop">상점</Link>
+                  <CartNavLink />
+                </nav>
                 <form action="/search" className="site-search-form">
                   <label className="sr-only" htmlFor="site-search-query">글 검색</label>
-                  <input id="site-search-query" name="q" type="search" placeholder="글 검색" />
-                  <button type="submit">검색</button>
+                  <input id="site-search-query" name="q" type="search" placeholder="검색어 입력" />
+                  <button type="submit" aria-label="검색">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.25">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-4-4" />
+                    </svg>
+                  </button>
                 </form>
-              </nav>
+              </div>
             </div>
           </header>
           <div className="site-main">{children}</div>

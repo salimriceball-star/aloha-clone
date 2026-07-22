@@ -29,7 +29,7 @@ export default async function AdminLoginEntryPage({
           <button type="submit" className="action-button">
             로그인
           </button>
-          {hasError ? <p className="warning-text">비밀번호가 올바르지 않습니다.</p> : null}
+          {hasError ? <p className="warning-text" role="alert">비밀번호가 올바르지 않습니다.</p> : null}
         </form>
       </section>
     </main>

@@ -38,9 +38,9 @@ export function AdminPostForm({
       </div>
 
       {copied ? <p className="success-text">복사본을 비공개 초안으로 만들었습니다. 주소와 제목을 확인한 뒤 발행하세요.</p> : null}
-      {error === "required" ? <p className="warning-text">제목과 본문은 필수입니다.</p> : null}
-      {error === "password" ? <p className="warning-text">비밀번호 보호 글에는 비밀번호가 필요합니다.</p> : null}
-      {error === "save" ? <p className="warning-text">저장하지 못했습니다. 경로 중복이나 데이터베이스 연결을 확인해 주세요.</p> : null}
+      {error === "required" ? <p className="warning-text" role="alert">제목과 본문은 필수입니다.</p> : null}
+      {error === "password" ? <p className="warning-text" role="alert">비밀번호 보호 글에는 비밀번호가 필요합니다.</p> : null}
+      {error === "save" ? <p className="warning-text" role="alert">저장하지 못했습니다. 경로 중복이나 데이터베이스 연결을 확인해 주세요.</p> : null}
 
       <form action={savePostAction} className="admin-form-grid">
         {post ? <input type="hidden" name="id" value={post.id} /> : null}
@@ -139,10 +139,15 @@ export function AdminPostForm({
           draftStorageKey={`${draftKey}-content`}
         />
 
-        <div className="admin-publish-actions field-wide">
-          <button type="submit" name="intent" value="draft" className="action-button secondary-button">초안 저장</button>
-          <button type="submit" name="intent" value="publish" className="action-button">발행 또는 업데이트</button>
-          {post ? <span className="inline-note">최근 저장: {new Date(post.updatedAt).toLocaleString("ko-KR")}</span> : null}
+        <div className="admin-publish-actions admin-sticky-action-bar field-wide">
+          <span className="admin-sticky-status">
+            <span className="status-indicator-dot" aria-hidden="true" />
+            {post ? `최근 서버 저장: ${new Date(post.updatedAt).toLocaleString("ko-KR")}` : "새 콘텐츠 · 아직 서버에 저장되지 않음"}
+          </span>
+          <div className="admin-sticky-buttons">
+            <button type="submit" name="intent" value="draft" className="action-button secondary-button">초안 저장</button>
+            <button type="submit" name="intent" value="publish" className="action-button">발행/업데이트</button>
+          </div>
         </div>
       </form>
     </section>

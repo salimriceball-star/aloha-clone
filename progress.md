@@ -1,6 +1,15 @@
 # Progress
 
-현재 milestone: zero-context frontend design review packet
+현재 milestone: frontend design refresh from zero-context review
+
+- [x] 적용 전 원격 체크포인트 `checkpoint/pre-frontend-design-refresh-2026-07-22` (`8f607c55d251c2e9ce4a12bd0b2c5dbe8ed83f30`)
+- [x] 외부 리뷰 답변 전체 확인 및 적용 범위 감사
+- [x] 전역 토큰·헤더·본문·상품 카드·접근성 개선
+- [x] 관리자 툴바·편집 저장 UX·결제 폼 개선
+- [x] 반응형·typecheck·lint·build·runtime QA
+- [ ] memory·commit·PR·Production 검증
+
+이전 milestone: zero-context frontend design review packet
 
 - [x] 공개·관리자 화면 범위와 디자인 관련 코드 의존성 인벤토리 작성
 - [x] 제로 컨텍스트 리뷰 목표·제약·평가 질문 작성
