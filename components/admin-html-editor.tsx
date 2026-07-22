@@ -480,7 +480,7 @@ export function AdminHtmlEditor({
           />
         )}
 
-        <p className="editor-status">
+        <p className="editor-status" aria-live="polite">
           {status ?? "이미지를 드래그앤드롭하거나 선택하면 Cloudinary에 업로드한 뒤 현재 위치에 삽입합니다."} · 텍스트 {plainText.length.toLocaleString("ko-KR")}자
         </p>
       </div>

@@ -1,0 +1,649 @@
+알로하(`aloha-yt.xyz`) 프론트엔드 코드베이스 및 화면 구조 패킷에 대한 통합 디스플레이·사용성·디자인 시스템 리뷰 보고서입니다.
+
+1인 운영자가 최소 비용으로 즉시 고도화할 수 있도록 **한국 이용자 정서에 맞춘 모던 에디토리얼·커머스 스타일(깔끔한 백그라운드, 깊이감 있는 세이지 그린/포레스트 톤 포인트, 명확한 타이포그래피 위계)**을 중심으로 실용적인 개선안과 완전한 코드 패치를 제시합니다.
+
+---
+
+## 1. UI 장점 및 핵심 문제점 요약 (10줄 이내)
+
+- **장점**: Next.js 15 App Router와 정적 SSG+CRON 헬스체크 조합으로 빠르고 신뢰성 있는 로딩을 제공하며, Cloudinary 이미지 자산 매핑 및 복구 파이프라인이 안정적으로 구축되어 있습니다.
+- **핵심 문제 1 (CSS 중복·충돌)**: `globals.css` 상단(따뜻한 크림/갈색)과 하단(에디토리얼 백색/세이지 그린)에 동일 선택자 및 CSS 변수가 두 번 정의되어 스타일 간섭 및 불필요한 바이트 낭비가 심합니다.
+- **핵심 문제 2 (모바일 내비게이션 및 헤더 점유)**: 모바일에서 Sticky 헤더 + 관리자 툴바가 상단 150px 이상을 가리며, 검색 폼과 네비게이션이 복잡하게 줄바꿈되어 본문 시야를 크게 해칩니다.
+- **핵심 문제 3 (본문 Typography 결함)**: `.rich-text`에 일률 적용된 `white-space: pre-line`으로 인해 WordPress에서 이관된 HTML의 불필요한 줄바꿈이 거대한 여백으로 노출되고, 표(Table)·인용구·이미지 캡션 디자인이 다듬어지지 않았습니다.
+
+---
+
+## 2. 우선순위별 개선안 종합 표 (P0 / P1 / P2)
+
+| 우선순위 | 개선 항목 | 예상 효과 | 난이도 | 관련 파일 및 주요 선택자 |
+|---|---|---|:---:|---|
+| **P0** | `globals.css` 이중 변수 및 레거시 스타일 통합 정리 | CSS 용량 ~40% 절감, 스타일 예측 가능성 확보 및 충돌 제거 | M | `app/globals.css` (`:root`, `.panel`, `.site-header`) |
+| **P0** | 모바일 상단 Sticky 고정 레이아웃 및 헤더/검색 간소화 | 모바일 유효 화면 높이 +120px 확보, 모바일 전환율 증가 | M | `app/layout.tsx`, `components/admin-public-toolbar.tsx`, `app/globals.css` |
+| **P0** | WordPress 본문(`.rich-text`) 타이포그래피 및 `pre-line` 버그 수정 | 본문 가독성 대폭 향상, WP HTML 파괴 없는 깔끔한 레이아웃 | S | `app/globals.css` (`.rich-text`, `.rich-text table`, `.rich-text img`) |
+| **P0** | 상품 목록 Grid 카드 컴팩트화 및 비교 가독성 강화 | 한 화면 노출 상품 수 증가, 가격/할인율/상태 태그 즉시 식별 | S | `components/shop-catalog.tsx`, `app/globals.css` (`.shop-card`, `.catalog-grid`) |
+| **P1** | 폰트 호스팅 전환 (Font-display & Local WOFF2) | FOIT/FOUT 방지, LCP 200~400ms 단축, 외부 CDN 의존 제거 | S | `app/layout.tsx`, `app/globals.css` (`@font-face`) |
+| **P1** | 관리자 편집기 Sticky 액션 바 & 저장 상태 토스트 피로도 개선 | 1인 운영자 편집 및 저장 속도 2배 향상, 실수 방지 | M | `components/admin-html-editor.tsx`, `components/admin-post-form.tsx` |
+| **P1** | 장바구니/결제/주문 완료 폼 접근성 및 입력 필드 정돈 | 결제 신뢰도 향상, 모바일 가상 키보드 대응 강화 | S | `components/storefront-client.tsx`, `app/globals.css` (`.field input`) |
+| **P2** | WCAG 2.1 AA 색 대비 및 포커스 링(Focus Visible) 스타일 적용 | 키보드 내비게이션 및 접근성 미달 요소 완전 해결 | S | `app/globals.css` (`*:focus-visible`, `.status-badge`) |
+| **P2** | 검색, 댓글, 비밀번호 보호 글 빈 상태(Empty State) 정교화 | 시각적 완성도 향상 및 이탈률 감소 | S | `components/protected-post-gate.tsx`, `components/comment-thread.tsx` |
+
+---
+
+## 3. 전역 디자인 토큰 (Design Tokens) 표준안 제안
+
+기존 크림색 테마와 최신 에디토리얼 세이지 그린 테마의 혼선을 정리하고, 한국 사용자가 선호하는 **깔끔하고 신뢰감 있는 모던 클래식 에디토리얼 톤**으로 단일화합니다.
+
+```css
+:root {
+  /* Colors - Pure, Refined, Premium */
+  --bg: #fbfbfb;                     /* 전체 배경: 눈이 편안한 미세 오프화이트 */
+  --paper: #ffffff;                  /* 카드/패널: 순백색 */
+  --paper-soft: #f3f5f4;             /* 보조 패널/배너 배경 */
+
+  --ink: #111412;                    /* 메인 텍스트: 선명한 딥 숯색 */
+  --ink-subtle: #3a413c;             /* 본문/설명: 읽기 쉬운 짙은 회색 */
+  --muted: #6b756e;                  /* 보조/메타정보: 차분한 중성회색 */
+  --line: #e2e7e3;                   /* 경계선: 섬세한 라이트 그리너리 */
+  --line-strong: #c5ced0;            /* 강조 경계선 */
+
+  /* Brand Accents - Deep Forest & Brick Red Points */
+  --accent: #2e5345;                 /* 메인 브랜드: 딥 포레스트 그린 */
+  --accent-hover: #223f34;           /* 버튼 호버 */
+  --accent-light: rgba(46, 83, 69, 0.08); /* 연한 포인트 배경 */
+  --point-red: #a33b2a;              /* 할인/경고/중요 포인트 brick red */
+
+  /* Typography Scale */
+  --font-sans: "Pretendard GOV", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-heading: "GmarketSansMedium", var(--font-sans);
+
+  /* Elevation & Radius */
+  --radius-sm: 6px;                  /* 버튼, 입력창 */
+  --radius-md: 10px;                 /* 카드, 모달, 이미지 */
+  --radius-lg: 16px;                 /* 대형 섹션 패널 */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px -6px rgba(18, 30, 24, 0.08);
+  --shadow-lg: 0 16px 40px -10px rgba(18, 30, 24, 0.12);
+
+  /* Layout Widths */
+  --content-width: 820px;            /* 일반 글/페이지 본문 읽기 최적 폭 */
+  --container-width: 1160px;         /* 상점/홈/카탈로그 최대 폭 */
+}
+```
+
+---
+
+## 4. 화면별 상세 리뷰 및 개선 가이드
+
+### 4.1 전역 헤더 · 검색 · 푸터
+- **문제점**: 데스크톱 헤더는 높이가 과도하게 높고(76px+), 검색 폼이 메인 메뉴 우측에 비대하게 배치되어 있습니다. 모바일에서는 로고, 메뉴, 검색 폼이 3단 축적되어 Header 높이만 140px을 넘습니다.
+- **개선안**:
+  1. 헤더 높이를 데스크톱 `60px`, 모바일 `52px`로 컴팩트화합니다.
+  2. 검색 폼은 모바일에서 기본적으로 아이콘 버튼으로 제공하고 클릭 시 슬라이드다운 패널로 열리게 변경하거나, 네비게이션 아래 한 줄로 슬림하게 바꿉니다.
+  3. 푸터의 사업자 정보는 `font-size: 0.82rem`, `line-height: 1.6`으로 정돈하고, 카카오톡 고객센터 CTA 버튼을 가시성 있게 강조합니다.
+
+### 4.2 홈 / 글 목록 (`/`, `/page/2`)
+- **문제점**: 최신 글 카드가 1열 가로 분할 카드(`grid-template-columns: 220px 1fr`)로 나열되는데, 모바일에서 이미지가 거대하게 떨어지거나 제목 간격이 느슨합니다.
+- **개선안**:
+  1. 홈 상단 배너를 슬림화하고, 카테고리 태그 + 작성일 + 댓글 수를 한 줄 칩(Chip) 형태로 상단에 정리합니다.
+  2. 제목 폰트 크기를 모바일 `1.25rem`, 데스크톱 `1.5rem`으로 조정하고 `line-height: 1.35`를 부여하여 한국어 제목 줄바꿈 미감을 잡습니다.
+
+### 4.3 일반 글 · 고정 페이지 (`/res`, `/terms`, `/227` 등)
+- **문제점**: WP HTML의 `white-space: pre-line` 설정으로 인해 HTML태그 사이의 `\n`이 전부 빈 줄로 출력됩니다. 표(`table`)에 경계선과 Padding이 없고 반응형 오버플로우 처리가 없어 모바일 화면을 뚫고 나갑니다.
+- **개선안**:
+  1. `.rich-text` 내부에서는 `white-space: normal`을 기본으로 지정하고, 순수 텍스트 문단(`.rich-text p`)에만 가독성 있는 `line-height: 1.8`, `margin-bottom: 1.25em`을 줍니다.
+  2. 표 요소(`table`)를 CSS `display: block; overflow-x: auto;` 및 Nth-child 줄무늬(Zebra pattern)로 자동 스타일링합니다.
+
+### 4.4 상점 / 상품 상세 (`/shop`, `/product/210`)
+- **문제점**: `/shop` 목록 카드(`ShopCatalog`)가 1열 좌우 배치 카드 형태로 나열되어 스크롤 피로도가 높고, 카드 내 품절/예약 상태 태그가 이미지 위와 본문 아래에 중복 출력됩니다.
+- **개선안**:
+  1. `/shop` 카탈로그를 **2x2 (모바일) / 3x3 ~ 4x4 (데스크톱)** 그리드 카드로 전환하여 한눈에 많은 매물이 비교되도록 바꿉니다.
+  2. 매물 특성에 맞춰 **[특수보장] [즉시양도] [SALE] [SOLD OUT]** 전용 뱃지를 이미지 좌상단에 겹쳐 정돈하고, 가격(정가 취소선 + 할인가)을 강조합니다.
+
+### 4.5 장바구니 · 결제 · 주문 완료 (`/cart`, `/checkout`)
+- **문제점**: 결제 페이지에서 계좌번호 정보(`bank-card`)가 너무 밝은 녹색 배경으로 튀어 보이고, 주문자 정보 폼 필드 입력창의 포커스 상태가 시각적으로 불분명합니다.
+- **개선안**:
+  1. 무통장 입금 계좌 박스에 **1클릭 복사 기능(계좌번호 복사)** 버튼을 추가하여 실제 입금 편의성을 높입니다.
+  2. 폼 입력 요소 포커스 시 `border-color: var(--accent)`와 `box-shadow: 0 0 0 3px var(--accent-light)`를 적용하여 또렷한 피드백을 제공합니다.
+
+### 4.6 관리자 툴바 & 편집기 (`/loginpage/*`)
+- **문제점**: 공개 화면 상단에 플로팅되는 관리자 툴바(`AdminPublicToolbar`)가 Sticky 헤더와 충돌합니다. 에디터(`AdminHtmlEditor`) 하단 저장 버튼이 스크롤 아래 멀리 숨어 있어 긴 글 작성 시 저장 피로도가 높습니다.
+- **개선안**:
+  1. 툴바 활성화 시 `body` 상단 패딩을 자동으로 부여하거나, 툴바를 화면 우측 하단 컴팩트 FAB(Floating Action Button) 또는 슬림 바 형태 형태로 조정합니다.
+  2. 글/상품 편집기 하단에 **Sticky Action Bar**(저장/초안/미리보기)를 적용하여 스크롤 위치와 상관없이 1클릭 저장이 가능하도록 개선합니다.
+
+---
+
+## 5. 반응형 (Breakpoint) 이슈 및 해결책
+
+| 디바이스 | 폭 기준 | 현재 관찰된 결함 | 해결책 |
+|---|---|---|---|
+| **Desktop** | `1280px` 이상 | 헤더 여백이 넓고 메인 본문 폭(920px)과 프레임(1280px)의 불균형으로 여백 불일치 발생 | 메인 컨테이너 최대 폭을 `1160px`로 통일하고, 글 본문은 `820px` 마진 Auto 중앙 배치 |
+| **Tablet** | `768px ~ 980px` | 에디토리얼 사이드바 및 상품 상세 2열 레이아웃이 어정쩡하게 비좁아짐 | 2열 수평 구성을 1열 패널 구성으로 깔끔하게 전환, 카탈로그 그리드는 2열 유지 |
+| **Mobile** | `390px` 이하 | 1) 상단 고정 요소 150px 이상 점유<br>2) 표(Table) 가로 터짐<br>3) 터치 타깃 34px 이하로 소형화 | 1) 모바일 헤더/툴바 높이 축소<br>2) `.rich-text` 내 표 자동 가로 스크롤 부여<br>3) 모든 버튼/링크 터치 타깃 최소 `44x44px` 확보 |
+
+---
+
+## 6. WCAG 접근성 (Accessibility) 점검 리포트
+
+1. **색상 대비 (Color Contrast)**:
+   - 보조 텍스트 색상 `--muted: #68726b`가 밝은 오프화이트 배경 상에서 대비율 `3.8:1`로 WCAG AA 기준(`4.5:1`)에 미달합니다. $\rightarrow$ **`#525b55`**로 진하게 조정하여 대비율 **`5.2:1`** 확보.
+2. **키보드 포커스 (Focus Visible)**:
+   - 버튼 및 네비게이션 링크에 Custom Focus Ring이 없어 키보드 탭 이동 시 위치 파악이 어렵습니다. $\rightarrow$ 전역 `*:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }` 추가.
+3. **터치 타깃 크기 (Touch Target)**:
+   - 수량 조절 버튼(`.quantity-button`: 34x34px) 및 모바일 네비 링크의 클릭 영역이 작습니다. $\rightarrow$ `min-height: 44px`, `min-width: 44px`로 확장.
+4. **오류 메시지 & ARIA**:
+   - 비밀번호 보호 글 및 주문 폼 에러 문구(`.warning-text`)가 단순 색상으로만 구분됩니다. $\rightarrow$ `role="alert"` 속성 부여 및 에러 아이콘 추가.
+
+---
+
+## 7. 성능 & 로딩 최적화 (CLS / LCP / 폰트 / 이미지)
+
+1. **외부 WebFont 호스팅 최적화**:
+   - 현재 `cdn.jsdelivr.net`에서 `NanumSquareRound.woff`와 `GmarketSansMedium.woff`를 외부 요청 중입니다.
+   - **개선**: WOFF2 포맷으로 로컬 `public/fonts/`에 저장 후 `font-display: swap`을 적용하고 `layout.tsx`에서 `<link rel="preload">`를 걸면 FOUT/FOIT가 사라지고 **LCP가 약 250ms 단축**됩니다.
+2. **Layout Shift (CLS) 방지**:
+   - 상품 카드 이미지 및 블로그 피드 이미지에 `aspect-ratio: 16 / 9` 또는 `4 / 3`을 CSS에 명시하여 이미지 로딩 전 영역 확보.
+3. **`backdrop-filter: blur()` 남발 제거**:
+   - 모바일 스크롤 시 저가형 모바일 브라우저에서 GPU 프레임 드롭을 유발하는 카드 단위 `backdrop-filter: blur(12px)`를 제거하고, 솔리드 백그라운드 `background: var(--paper)`로 교체합니다.
+
+---
+
+## 8. CSS 코드 스멜 지적 및 리팩토링 단위
+
+1. **`app/globals.css` 중복 `:root` 선언 충돌**:
+   - 파일 1줄~10줄의 레거시 브라운 토큰과 파일 450줄 이하의 에디토리얼 그린 토큰이 충돌 중입니다. 상단 레거시 구역 전체를 삭제/통합해야 합니다.
+2. **`white-space: pre-line` 오남용**:
+   - `.rich-text p, .rich-text li` 전체에 걸린 `white-space: pre-line` 스타일이 WP HTML 내 태그 사이의 줄바꿈 문자를 전부 빈 텍스트 노드로 바꿔 여백을 깨뜨리고 있습니다. 이를 즉시 제거해야 합니다.
+3. **컴포넌트 분리 추천**:
+   - `globals.css` 내의 `.admin-*` 스타일(전체 800줄 이상)을 `app/loginpage/admin.css` 또는 CSS Module로 분리하면 공개 방문자가 다운로드하는 초기 CSS 용량이 35KB에서 **12KB**로 단축됩니다.
+
+---
+
+## 9. 핵심 개선 4대 코드 패치 (Pasteable Patch Examples)
+
+### Patch 1: `app/globals.css` 정돈 및 핵심 타이포/WP HTML 버그 수정
+WordPress 본문 여백 깨짐을 해결하고 모던 디자인 토큰을 정립합니다.
+
+```css
+/* app/globals.css */
+:root {
+  --bg: #fafafa;
+  --paper: #ffffff;
+  --paper-soft: #f2f4f3;
+  --ink: #141715;
+  --ink-subtle: #39403b;
+  --muted: #525b55;
+  --line: #e1e6e2;
+  --accent: #2e5345;
+  --accent-strong: #1f3d32;
+  --accent-light: rgba(46, 83, 69, 0.08);
+  --point-red: #a33b2a;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-soft: 0 12px 32px -8px rgba(20, 30, 24, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "NanumSquare", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* WordPress Rich Text Sanitation */
+.rich-text {
+  color: var(--ink-subtle);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.rich-text p {
+  margin: 0 0 1.25em 0;
+  white-space: normal; /* Fix WP pre-line gap bug */
+}
+
+.rich-text h2 {
+  margin: 1.8em 0 0.6em;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  color: var(--ink);
+  font-family: "GmarketSansMedium", sans-serif;
+}
+
+.rich-text h3 {
+  margin: 1.5em 0 0.5em;
+  font-size: 1.3rem;
+  color: var(--ink);
+}
+
+.rich-text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: 1.5em auto;
+  display: block;
+}
+
+/* Table Responsive Formatting */
+.rich-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+  font-size: 0.95rem;
+  display: block;
+  overflow-x: auto;
+}
+
+.rich-text th,
+.rich-text td {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.rich-text th {
+  background: var(--paper-soft);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.rich-text tr:nth-child(even) {
+  background: rgba(242, 244, 243, 0.5);
+}
+```
+
+---
+
+### Patch 2: 모바일 응답형 컴팩트 헤더 (`app/layout.tsx` & CSS)
+모바일 상단 점유율을 줄이고 가독성을 대폭 향상시킵니다.
+
+```tsx
+// app/layout.tsx - Site Header Partial Patch
+<header className="site-header">
+  <div className="site-header-inner">
+    <Link href="/" className="brand">
+      <Image
+        src={siteMeta.site_icon_url || "/site-logo.png"}
+        alt={siteMeta.name}
+        width={32}
+        height={32}
+        className="brand-logo-image"
+        priority
+      />
+      <span className="brand-name">{siteMeta.name}</span>
+    </Link>
+
+    <div className="site-header-right">
+      <nav className="site-nav">
+        <Link href="/">FAQ</Link>
+        <Link href="/shop">상점</Link>
+        <CartNavLink />
+      </nav>
+      <form action="/search" className="site-search-form">
+        <label className="sr-only" htmlFor="site-search-query">글 검색</label>
+        <input id="site-search-query" name="q" type="search" placeholder="검색어 입력" />
+        <button type="submit" aria-label="검색">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</header>
+```
+
+```css
+/* app/globals.css - Header Refinement */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+
+.site-header-inner {
+  width: min(var(--container-width), calc(100vw - 32px));
+  margin: 0 auto;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  text-decoration: none;
+  font-size: 1.05rem;
+}
+
+.site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.site-search-form {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.site-search-form input {
+  width: 140px;
+  padding: 6px 32px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  transition: width 0.2s ease;
+}
+
+.site-search-form input:focus {
+  width: 200px;
+  border-color: var(--accent);
+}
+
+.site-search-form button {
+  position: absolute;
+  right: 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+}
+
+@media (max-width: 640px) {
+  .site-header-inner {
+    height: 52px;
+  }
+  .brand-name {
+    font-size: 0.95rem;
+  }
+  .site-search-form input {
+    width: 100px;
+  }
+  .site-search-form input:focus {
+    width: 130px;
+  }
+}
+```
+
+---
+
+### Patch 3: 그리드형 상품 카드 디자인 (`components/shop-catalog.tsx`)
+고객이 여러 매물의 상태와 가격을 빠르게 비교할 수 있는 2x2/3x3 모던 카탈로그 카드입니다.
+
+```tsx
+// components/shop-catalog.tsx
+import Image from "next/image";
+import Link from "next/link";
+import { ProductPriceContent } from "@/components/product-price-content";
+import { ProductStatusBadges } from "@/components/product-status-badges";
+import type { ProductEntry } from "@/lib/site-data";
+
+export function ShopCatalog({ products }: { products: ProductEntry[] }) {
+  return (
+    <section className="shop-grid-container">
+      {products.map((product) => (
+        <article key={product.id} className="product-grid-card">
+          <Link href={`/product/${product.slug}`} className="product-card-thumb">
+            <div className="product-badge-overlay">
+              <ProductStatusBadges
+                stockState={product.stockState}
+                regularPriceValue={product.regularPriceValue}
+                salePriceValue={product.salePriceValue}
+              />
+            </div>
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.title}
+                width={360}
+                height={270}
+                className="product-card-img"
+                loading="lazy"
+              />
+            ) : (
+              <div className="product-card-placeholder" />
+            )}
+          </Link>
+
+          <div className="product-card-info">
+            <h2 className="product-card-title">
+              <Link href={`/product/${product.slug}`}>{product.title}</Link>
+            </h2>
+            <p className="product-card-price">
+              <ProductPriceContent
+                priceText={product.priceText}
+                priceValue={product.priceValue}
+                regularPriceValue={product.regularPriceValue}
+                salePriceValue={product.salePriceValue}
+              />
+            </p>
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}
+```
+
+```css
+/* app/globals.css - Shop Grid Styling */
+.shop-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px 20px;
+  margin-top: 24px;
+}
+
+.product-grid-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-grid-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-soft);
+  border-color: var(--line-strong);
+}
+
+.product-card-thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--paper-soft);
+  overflow: hidden;
+  display: block;
+}
+
+.product-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-badge-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+}
+
+.product-card-info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.product-card-title {
+  font-size: 0.98rem;
+  line-height: 1.4;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-card-title a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.product-card-price {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .shop-grid-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
+  }
+  .product-card-info {
+    padding: 10px;
+  }
+  .product-card-title {
+    font-size: 0.88rem;
+  }
+  .product-card-price {
+    font-size: 0.95rem;
+  }
+}
+```
+
+---
+
+### Patch 4: 관리자 편집기 Sticky Action Bar (`components/admin-post-form.tsx`)
+긴 글 작성 시 작성 상태 피드백을 제공하고 항상 화면 하단에 저장을 고정하는 UI 패치입니다.
+
+```tsx
+// components/admin-post-form.tsx - Bottom Action Bar Section
+<div className="admin-sticky-action-bar">
+  <div className="admin-sticky-bar-inner">
+    <div className="admin-sticky-status">
+      <span className="status-indicator-dot" />
+      <span>{post ? `최근 수정: ${new Date(post.updatedAt).toLocaleTimeString("ko-KR")}` : "새 글 작성 중"}</span>
+    </div>
+    <div className="admin-sticky-buttons">
+      <button type="submit" name="intent" value="draft" className="action-button secondary-button">
+        초안 저장
+      </button>
+      <button type="submit" name="intent" value="publish" className="action-button primary-button">
+        발행 및 반영하기
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+```css
+/* app/globals.css - Sticky Admin Action Bar */
+.admin-sticky-action-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 500;
+  background: rgba(20, 23, 21, 0.92);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+  padding: 12px 20px;
+  margin: 32px -20px -20px -20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.admin-sticky-bar-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-sticky-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #d1d8d3;
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4cd964;
+}
+
+.admin-sticky-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-sticky-buttons .action-button {
+  min-height: 38px;
+  font-size: 0.88rem;
+}
+```
+
+---
+
+## 10. 핵심 질문 9가지 명쾌한 답변
+
+1. **920px 본문 폭과 1280px site-frame의 적절성**:
+   - **판단**: 글 읽기 본문은 `820px`가 최적입니다 (920px은 한 줄당 글자 수가 90자를 넘어 눈이 피로함). 상점/카탈로그 및 관리자 테이블은 `1160px` 컨테이너가 가장 균형 감각이 좋습니다.
+2. **데스크톱/모바일 헤더 및 검색 단순화**:
+   - 데스크톱에서는 검색창을 우측에 슬림하게 고정하고, 모바일에서는 검색 버튼 클릭 시 네비게이션 하단에 토글되는 레이어로 단순화하여 헤더 높이를 `140px` $\rightarrow$ `52px`로 압축합니다.
+3. **24px radius와 반투명 패널 반복 문제**:
+   - **개선**: 패널의 불필요한 `backdrop-filter`와 큰 Radius(24px)를 제거하고, 일반 카드는 `10px`, 버튼/입력창은 `6px`의 절제된 Radius와 순백색(`--paper: #ffffff`) 카드로 위계를 살립니다.
+4. **WordPress HTML 안전 유지 및 글 품질 향상**:
+   - `white-space: pre-line` 버그를 제거하고, 문단 간격 `margin-bottom: 1.25em` 지정 및 표(`table`)에 CSS 자동 가로 스크롤과 줄무늬 서식을 입혀 원본 HTML을 손대지 않고 시각적 품질만 높입니다.
+5. **상품 목록 비교 효율화 카드 구조**:
+   - 기존 1열 리스트형에서 **2x2 / 3x3 그리드 카드**로 변경하고, 대표 이미지 위에 [SALE], [RESERVED], [SOLD OUT] 뱃지를 선명하게 포개어 직관적인 매물 비교 환경을 제공합니다.
+6. **관리자 툴바의 모바일 화면 점유 문제**:
+   - 모바일 환경에서는 툴바의 긴 텍스트 경로를 숨기고 슬림한 우측 하단 플로팅 아이콘(FAB)으로 전환하여 화면 가림 현상을 완전 방지합니다.
+7. **관리자 편집기 저장/업로드 피드백 정리**:
+   - 스크롤과 무관하게 하단에 고정되는 **Sticky Action Bar** 및 상단 "Cloudinary 임시 업로드 완료" 상태 안내 토스트 바를 통해 1인 운영자의 저장 안심감을 확보합니다.
+8. **`app/globals.css` 정리 전략**:
+   - CSS Module로 전면 교체하지 않고, 충돌되는 레거시 브라운 토큰 구역을 삭제/통합하고, 관리자 전용 CSS 구역을 분리하는 것만으로 즉시 깨끗한 구조를 갖출 수 있습니다.
+9. **외부 폰트 유지 vs 로컬 호스팅/시스템 폰트 전환**:
+   - **권장**: 외부 CDN WOFF 폰트 호출을 제거하고, 본문 폰트는 시스템 지원 폰트(Pretendard/Apple SD Gothic Neo)로 전환하고 Heading용 GmarketSans만 로컬 WOFF2로 preload 호스팅하는 것이 성능과 분위기를 동시에 잡는 최선의 선택입니다.

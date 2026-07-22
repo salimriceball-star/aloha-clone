@@ -73,9 +73,9 @@ export default async function LoginpageProductEditPage({
         {query.copied === "1" ? (
           <p className="inline-note">비공개 독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 공개범위를 선택해 저장해 주세요.</p>
         ) : null}
-        {query.error === "slug" ? <p className="warning-text">사용할 수 있는 상품 슬러그를 입력해 주세요.</p> : null}
+        {query.error === "slug" ? <p className="warning-text" role="alert">사용할 수 있는 상품 슬러그를 입력해 주세요.</p> : null}
         {query.error === "save" ? (
-          <p className="warning-text">상품 변경 사항을 DB에 저장하지 못했습니다. 내용은 브라우저 임시 저장본에서 복원할 수 있습니다.</p>
+          <p className="warning-text" role="alert">상품 변경 사항을 DB에 저장하지 못했습니다. 내용은 브라우저 임시 저장본에서 복원할 수 있습니다.</p>
         ) : null}
       </section>
 
@@ -152,9 +152,18 @@ export default async function LoginpageProductEditPage({
             draftStorageKey={`product:${product.overrideId ?? product.sourceProductId ?? product.slug}:content`}
           />
 
-          <button type="submit" className="action-button">
-            저장
-          </button>
+          <div className="admin-publish-actions admin-sticky-action-bar field-wide">
+            <span className="admin-sticky-status">
+              <span className="status-indicator-dot" aria-hidden="true" />
+              업로드한 이미지와 편집 내용은 저장 버튼을 눌러야 반영됩니다.
+            </span>
+            <div className="admin-sticky-buttons">
+              <Link href={`/product/${encodeURIComponent(product.slug)}`} target="_blank" className="action-button secondary-button">
+                공개 화면
+              </Link>
+              <button type="submit" className="action-button">상품 저장</button>
+            </div>
+          </div>
         </form>
       </article>
     </section>

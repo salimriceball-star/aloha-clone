@@ -15,28 +15,29 @@ export function ShopCatalog({ products }: ShopCatalogProps) {
     <section className="shop-list">
       {products.map((product) => (
         <article key={product.id} className="shop-card">
-          {product.imageUrl ? (
-            <Link href={`/product/${product.slug}`} className="shop-card-media">
-              <span className="shop-card-badges">
-                <ProductStatusBadges
-                  stockState={product.stockState}
-                  regularPriceValue={product.regularPriceValue}
-                  salePriceValue={product.salePriceValue}
-                />
-              </span>
-              <Image src={product.imageUrl} alt={product.title} width={420} height={520} />
-            </Link>
-          ) : null}
+          <Link href={`/product/${product.slug}`} className="shop-card-media">
+            <span className="shop-card-badges">
+              <ProductStatusBadges
+                stockState={product.stockState}
+                regularPriceValue={product.regularPriceValue}
+                salePriceValue={product.salePriceValue}
+              />
+            </span>
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.title}
+                width={420}
+                height={520}
+                sizes="(max-width: 560px) calc(100vw - 24px), (max-width: 980px) 50vw, 33vw"
+              />
+            ) : (
+              <span className="shop-card-placeholder" aria-hidden="true" />
+            )}
+          </Link>
 
           <div className="shop-card-body">
             <div className="shop-card-head">
-              <div className="shop-card-status">
-                <ProductStatusBadges
-                  stockState={product.stockState}
-                  regularPriceValue={product.regularPriceValue}
-                  salePriceValue={product.salePriceValue}
-                />
-              </div>
               <h2>
                 <Link href={`/product/${product.slug}`}>{product.title}</Link>
               </h2>

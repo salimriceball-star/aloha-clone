@@ -74,13 +74,13 @@ export function ProtectedPostGate({ post }: { post: ProtectedPostSummary }) {
             <div className="password-row">
               <label className="field password-field">
                 <span>비밀번호</span>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} spellCheck={false} required />
+                <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} spellCheck={false} required />
               </label>
               <button type="submit" className="action-button" disabled={isChecking}>
                 {isChecking ? "확인 중…" : "확인"}
               </button>
             </div>
-            {error ? <p className="warning-text">{error}</p> : null}
+            {error ? <p className="warning-text" role="alert">{error}</p> : null}
           </form>
         </div>
       )}

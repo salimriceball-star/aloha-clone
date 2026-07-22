@@ -119,6 +119,28 @@ function lineTotalLabel(item: ResolvedCartItem) {
   return formatWon(item.lineTotal);
 }
 
+function BankAccountCopyButton() {
+  const [copyStatus, setCopyStatus] = useState("");
+
+  const copyAccountNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(bankTransferAccount.accountNumber);
+      setCopyStatus("계좌번호를 복사했습니다.");
+    } catch {
+      setCopyStatus("복사하지 못했습니다. 계좌번호를 길게 눌러 복사해 주세요.");
+    }
+  };
+
+  return (
+    <div className="bank-copy-row">
+      <button type="button" className="bank-copy-button" onClick={() => void copyAccountNumber()}>
+        계좌번호 복사
+      </button>
+      <span className="bank-copy-status" aria-live="polite">{copyStatus}</span>
+    </div>
+  );
+}
+
 function useCartState(catalog: PurchaseProduct[]) {
   const [cartItems, setCartItems] = useState<ResolvedCartItem[]>([]);
 
@@ -302,11 +324,11 @@ export function CartPageClient({ catalog }: { catalog: PurchaseProduct[] }) {
               <p className="summary">{clampText(item.product.excerpt, 140)}</p>
               <div className="quantity-row">
                 <button type="button" className="quantity-button" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
-                  -
+                  <span aria-hidden="true">−</span><span className="sr-only">수량 줄이기</span>
                 </button>
                 <strong>{item.quantity}</strong>
                 <button type="button" className="quantity-button" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
-                  +
+                  <span aria-hidden="true">+</span><span className="sr-only">수량 늘리기</span>
                 </button>
                 <span>{lineTotalLabel(item)}</span>
               </div>
@@ -409,12 +431,14 @@ export function CheckoutPageClient({ catalog }: { catalog: PurchaseProduct[] }) 
         <div className="field-grid">
           <label className="field">
             <span>{checkoutFieldLabels[0]}</span>
-            <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} required />
+            <input name="name" autoComplete="name" value={customerName} onChange={(event) => setCustomerName(event.target.value)} required />
           </label>
           <label className="field">
             <span>{checkoutFieldLabels[1]}</span>
             <input
               type="email"
+              name="email"
+              autoComplete="email"
               placeholder="name@example.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -423,12 +447,13 @@ export function CheckoutPageClient({ catalog }: { catalog: PurchaseProduct[] }) 
           </label>
           <label className="field">
             <span>{checkoutFieldLabels[2]}</span>
-            <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
+            <input name="tel" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} />
           </label>
           <label className="field field-wide">
             <span>{checkoutFieldLabels[3]}</span>
             <textarea
               rows={4}
+              name="memo"
               placeholder="주문 관련 메시지, 예) 전달 관련 메모."
               value={memo}
               onChange={(event) => setMemo(event.target.value)}
@@ -467,11 +492,12 @@ export function CheckoutPageClient({ catalog }: { catalog: PurchaseProduct[] }) 
             <strong>{bankTransferAccount.bankName}</strong>
             <span>{bankTransferAccount.accountHolder}</span>
             <span>{bankTransferAccount.accountNumber}</span>
+            <BankAccountCopyButton />
           </div>
           <button type="submit" className="action-button" disabled={submitting}>
             주문 확정
           </button>
-          {submitError ? <p className="warning-text">{submitError}</p> : null}
+          {submitError ? <p className="warning-text" role="alert">{submitError}</p> : null}
         </section>
       </aside>
     </form>
@@ -586,6 +612,7 @@ export function OrderReceivedClient({
             <strong>{bankTransferAccount.bankName}</strong>
             <span>{bankTransferAccount.accountHolder}</span>
             <span>{bankTransferAccount.accountNumber}</span>
+            <BankAccountCopyButton />
           </section>
 
           <section className="panel order-card">

@@ -112,6 +112,16 @@ function rewriteSrcsetAssetUrls(html: string, lookup: Map<string, string>) {
   });
 }
 
+function rewriteImageSrcAssetUrls(html: string, lookup: Map<string, string>) {
+  return html.replace(/(<img\b[^>]*\ssrc=)(["'])([^"']+)(\2)/gi, (tag, prefix: string, quote: string, value: string) => {
+    const decodedUrl = value.replaceAll("&amp;", "&");
+    const normalizedUrl = normalizeAssetUrl(decodedUrl);
+    const targetUrl = lookup.get(value) ?? lookup.get(decodedUrl) ?? lookup.get(normalizedUrl);
+
+    return targetUrl ? `${prefix}${quote}${targetUrl}${quote}` : tag;
+  });
+}
+
 function removeSkippedImageTags(html: string, skipped: Set<string>) {
   if (!skipped.size) {
     return html;
@@ -147,5 +157,8 @@ export async function rewriteHtmlAssetUrls(html: string) {
     rewritten = rewritten.split(sourceUrl).join(targetUrl);
   }
 
-  return removeSkippedImageTags(rewriteSrcsetAssetUrls(rewritten, lookup), skipped);
+  rewritten = rewriteImageSrcAssetUrls(rewritten, lookup);
+  rewritten = rewriteSrcsetAssetUrls(rewritten, lookup);
+
+  return removeSkippedImageTags(rewritten, skipped);
 }
