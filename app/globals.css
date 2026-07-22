@@ -44,6 +44,88 @@ body {
   min-height: 100vh;
 }
 
+.admin-public-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  width: 100%;
+  color: #fffaf2;
+  background: rgba(29, 27, 25, 0.97);
+  box-shadow: 0 8px 24px rgba(29, 27, 25, 0.18);
+  backdrop-filter: blur(12px);
+}
+
+.admin-public-toolbar-inner {
+  width: min(1280px, calc(100vw - 24px));
+  min-height: 44px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-public-toolbar-mode {
+  flex: 0 0 auto;
+  color: #ffd9cf;
+  font-weight: 800;
+}
+
+.admin-public-toolbar-context {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 250, 242, 0.7);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-public-toolbar-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-public-toolbar-nav a {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 7px;
+  color: #fffaf2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-public-toolbar-nav a:hover,
+.admin-public-toolbar-nav a:focus-visible {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.admin-public-toolbar-nav .admin-public-toolbar-primary {
+  color: #fff;
+  background: var(--accent);
+}
+
+.admin-public-toolbar-nav .admin-public-toolbar-primary:hover,
+.admin-public-toolbar-nav .admin-public-toolbar-primary:focus-visible {
+  background: #aa3b28;
+}
+
+@media (max-width: 720px) {
+  .admin-public-toolbar-inner {
+    min-height: 48px;
+    overflow-x: auto;
+  }
+
+  .admin-public-toolbar-context {
+    display: none;
+  }
+
+  .admin-public-toolbar-nav {
+    margin-left: 0;
+  }
+}
+
 .site-frame {
   width: min(1280px, calc(100vw - 24px));
   margin: 0 auto;
