@@ -257,14 +257,14 @@ export async function saveProductAction(formData: FormData) {
   redirect(buildRedirectPath(page > 1 ? `${savedPath}?page=${page}` : savedPath, savedPath, { saved: "1" }));
 }
 
-export async function duplicateProductAction(formData: FormData) {
+export async function duplicateProductAction(sourceSlug: string, formData: FormData) {
   await requireAdminSession();
 
-  const sourceSlug = String(formData.get("slug") ?? "").trim();
+  const trimmedSourceSlug = sourceSlug.trim();
   const page = Math.max(1, Number(formData.get("currentPage") ?? 1) || 1);
   const listPath = page > 1 ? `/loginpage/products/page/${page}` : "/loginpage/products";
-  const source = sourceSlug
-    ? await getProductBySlug(sourceSlug, { includeHidden: true, includePrivate: true })
+  const source = trimmedSourceSlug
+    ? await getProductBySlug(trimmedSourceSlug, { includeHidden: true, includePrivate: true })
     : null;
 
   if (!source) {

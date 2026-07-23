@@ -149,9 +149,7 @@ export async function AdminProductsIndex({
                       <div className="admin-product-actions">
                         <button
                           type="submit"
-                          formAction={duplicateProductAction}
-                          name="slug"
-                          value={product.slug}
+                          formAction={duplicateProductAction.bind(null, product.slug)}
                           className="action-button secondary-button"
                         >
                           복사
