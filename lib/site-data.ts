@@ -942,7 +942,7 @@ export async function getProducts(options?: {
       .map(mapStandaloneProduct)
   ];
 
-  return merged.filter((product) => {
+  const visible = merged.filter((product) => {
     if (product.visibility === "private") {
       return options?.includePrivate ?? false;
     }
@@ -953,6 +953,8 @@ export async function getProducts(options?: {
 
     return true;
   });
+
+  return sortByDateDesc(visible);
 }
 
 export async function getProductBySlug(slug: string, options?: {
