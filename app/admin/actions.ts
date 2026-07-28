@@ -282,7 +282,9 @@ export async function duplicateProductAction(sourceSlug: string, formData: FormD
       imageUrl: source.imageUrl,
       regularPriceValue: source.regularPriceValue,
       salePriceValue: source.salePriceValue,
-      visibility: "private",
+      // 복사본은 '링크로만 접근'으로 시작한다. 상점 목록에는 안 뜨지만 주소로는 바로 확인할 수 있어,
+      // 공개범위를 손대지 않고 저장했을 때 내용이 통째로 안 보이는 사고를 막는다.
+      visibility: "hidden",
       stockState: source.stockState
     });
   } catch (error) {

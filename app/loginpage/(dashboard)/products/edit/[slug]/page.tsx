@@ -71,7 +71,10 @@ export default async function LoginpageProductEditPage({
 
         {query.saved === "1" ? <p className="inline-note">상품 설정이 저장되었습니다.</p> : null}
         {query.copied === "1" ? (
-          <p className="inline-note">비공개 독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 공개범위를 선택해 저장해 주세요.</p>
+          <p className="inline-note">
+            독립 복사본을 만들었습니다. 공개범위는 <strong>링크로만 접근</strong>으로 시작하니, 슬러그와 상품 정보를 확인한 뒤 상점
+            목록에도 띄우려면 &lsquo;공개&rsquo;로 바꿔 저장해 주세요.
+          </p>
         ) : null}
 
         {product.visibility === "private" ? (
@@ -136,7 +139,7 @@ export default async function LoginpageProductEditPage({
                 <option value="private">비공개 (주소 접근 시 404)</option>
               </select>
               <small className="editor-description">
-                복사본은 &lsquo;비공개&rsquo;로 만들어집니다. 그대로 저장하면 공개 주소가 404이니 발행할 때 꼭 바꿔 주세요.
+                복사본은 &lsquo;링크로만 접근&rsquo;으로 만들어집니다. 상점 목록·검색에도 띄우려면 &lsquo;공개&rsquo;로 바꿔 주세요.
               </small>
             </label>
 

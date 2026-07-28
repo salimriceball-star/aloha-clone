@@ -23,7 +23,10 @@
 
 참조: [[copied-products-missing-in-admin-list__2026-07-25-1200__passed]], docs/project-overview.md
 
+후속(사용자 승인): `duplicateProductAction`의 복사본 기본 visibility를 private→**hidden**으로 변경(/home/ahn/aloha/app/admin/actions.ts). 편집 화면의 copied 안내 문구·공개범위 설명도 hidden 기준으로 교체. typecheck/lint/build clean.
+
+배포: 커밋 55d7251(안내 페이지 등) main 푸시 → Vercel 반영 확인. 프로덕션 probe로 비공개 상품 200+"비공개 상품"+noindex, 단축주소 308, 정상 상품/홈/상점 200, 없는 주소 404 확인 후 probe 삭제.
+
 다음 단계/known issues:
-- 코드 수정분 **아직 커밋/푸시 안 함** → Vercel 미배포. 사용자 승인 대기.
-- 미결 제안: `duplicateProductAction` 복사본 기본 visibility를 private→hidden으로 바꿀지 (사용자 실사용은 항상 hidden).
 - 잠복 위험: 오버라이드 본문에 `채널 소개` 제목이 들어가면 `splitProductContentSections`가 저장 때마다 앞부분을 잘라냄.
+- 230번은 hidden 상태. 상점 목록 노출이 필요하면 사용자가 public으로 전환해야 함.
