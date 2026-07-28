@@ -73,6 +73,21 @@ export default async function LoginpageProductEditPage({
         {query.copied === "1" ? (
           <p className="inline-note">비공개 독립 복사본을 만들었습니다. 슬러그와 상품 정보를 확인한 뒤 공개범위를 선택해 저장해 주세요.</p>
         ) : null}
+
+        {product.visibility === "private" ? (
+          <p className="warning-text" role="alert">
+            이 상품은 <strong>비공개</strong>라서 저장은 되었지만 방문자에게는 보이지 않습니다. <code>/product/{product.slug}</code>
+            {" 와 "}
+            <code>/{product.slug}</code> 주소 모두 404가 됩니다. 아래 <strong>공개범위</strong>를 &lsquo;공개&rsquo; 또는 &lsquo;링크로만
+            접근&rsquo;으로 바꾼 뒤 다시 저장해 주세요.
+          </p>
+        ) : null}
+        {product.visibility === "hidden" ? (
+          <p className="inline-note">
+            공개범위가 <strong>링크로만 접근</strong>입니다. <code>/product/{product.slug}</code> 주소를 아는 사람은 볼 수 있지만 상점
+            목록·검색·사이트맵에는 나오지 않습니다.
+          </p>
+        ) : null}
         {query.error === "slug" ? <p className="warning-text" role="alert">사용할 수 있는 상품 슬러그를 입력해 주세요.</p> : null}
         {query.error === "save" ? (
           <p className="warning-text" role="alert">상품 변경 사항을 DB에 저장하지 못했습니다. 내용은 브라우저 임시 저장본에서 복원할 수 있습니다.</p>
@@ -118,8 +133,11 @@ export default async function LoginpageProductEditPage({
               <select name="visibility" defaultValue={product.visibility}>
                 <option value="public">공개</option>
                 <option value="hidden">링크로만 접근</option>
-                <option value="private">비공개</option>
+                <option value="private">비공개 (주소 접근 시 404)</option>
               </select>
+              <small className="editor-description">
+                복사본은 &lsquo;비공개&rsquo;로 만들어집니다. 그대로 저장하면 공개 주소가 404이니 발행할 때 꼭 바꿔 주세요.
+              </small>
             </label>
 
             <label className="field">

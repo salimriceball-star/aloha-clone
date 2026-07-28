@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
+import { PrivateContentNotice } from "@/components/private-content-notice";
 import { ProductPriceContent } from "@/components/product-price-content";
 import { ProductStatusBadges } from "@/components/product-status-badges";
 import { StructuredData } from "@/components/structured-data";
@@ -18,9 +19,17 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug, { includeHidden: true });
+  const product = await getProductBySlug(slug, { includeHidden: true, includePrivate: true });
   if (!product) {
     return {};
+  }
+
+  if (product.visibility === "private") {
+    return {
+      title: "비공개 상품",
+      description: "비공개로 설정된 상품입니다.",
+      robots: { index: false, follow: false, noarchive: true }
+    };
   }
 
   return {
@@ -51,13 +60,16 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
   const [product, productCommonIntroHtml, siteMeta] = await Promise.all([
-    getProductBySlug(slug, { includeHidden: true }),
+    getProductBySlug(slug, { includeHidden: true, includePrivate: true }),
     getProductCommonIntroHtml(),
     getSiteMeta()
   ]);
 
   if (!product) {
     notFound();
+  }
+  if (product.visibility === "private") {
+    return <PrivateContentNotice kind="product" />;
   }
   if (slug !== product.slug) {
     permanentRedirect(`/product/${encodeURIComponent(product.slug)}`);

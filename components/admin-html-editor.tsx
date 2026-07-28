@@ -43,6 +43,19 @@ function buildInsertedMarkup(asset: UploadedAsset) {
   return `<p><a href="${url}" target="_blank" rel="noreferrer">${label}</a></p>`;
 }
 
+// 브라우저가 contentEditable에서 돌려주는 HTML은 서버에 저장된 원본 문자열과
+// 직렬화 방식(속성 순서, 빈 태그 표기, 엔티티)이 달라 그대로 비교하면 항상 "다름"이 된다.
+// 양쪽을 같은 파서에 한 번씩 통과시켜 같은 표기법으로 맞춘 뒤 비교한다.
+function normalizeHtmlForCompare(value: string) {
+  if (typeof document === "undefined") {
+    return value.trim();
+  }
+
+  const holder = document.createElement("div");
+  holder.innerHTML = value;
+  return holder.innerHTML.trim();
+}
+
 function getRangeFromPoint(x: number, y: number) {
   if (typeof document.caretRangeFromPoint === "function") {
     return document.caretRangeFromPoint(x, y);
@@ -108,10 +121,18 @@ export function AdminHtmlEditor({
 
   useEffect(() => {
     if (!draftStorageKey) return;
-    const draft = window.localStorage.getItem(`aloha-editor:${draftStorageKey}`);
-    if (draft !== null && draft !== (initialHtml ?? "")) {
-      setSavedDraft(draft);
+    const storageKey = `aloha-editor:${draftStorageKey}`;
+    const draft = window.localStorage.getItem(storageKey);
+    if (draft === null) return;
+
+    // 저장이 정상적으로 반영됐다면 임시본과 서버 저장본의 내용이 같다.
+    // 이때는 배너를 띄우지 않고 남은 임시본을 지운다.
+    if (normalizeHtmlForCompare(draft) === normalizeHtmlForCompare(initialHtml ?? "")) {
+      window.localStorage.removeItem(storageKey);
+      return;
     }
+
+    setSavedDraft(draft);
   }, [draftStorageKey, initialHtml]);
 
   useEffect(() => {
@@ -353,7 +374,10 @@ export function AdminHtmlEditor({
 
         {savedDraft !== null ? (
           <div className="editor-recovery-banner">
-            <span>이 브라우저에 서버 저장본과 다른 임시 내용이 있습니다.</span>
+            <span>
+              저장 버튼을 누르지 않은 편집 내용이 이 브라우저에 남아 있습니다. 지금 화면은 서버 저장본입니다 — 임시 내용을 되살리려면
+              &lsquo;복원&rsquo; 후 저장, 버리려면 &lsquo;삭제&rsquo;를 눌러 주세요.
+            </span>
             <button type="button" className="toolbar-button" onClick={restoreDraft}>복원</button>
             <button type="button" className="toolbar-button" onClick={discardDraft}>삭제</button>
           </div>

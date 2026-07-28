@@ -705,12 +705,15 @@ export async function getPostBySlug(slug: string) {
   return match;
 }
 
-export async function getPostByPath(path: string) {
+export async function getPostByPath(path: string, options?: { includePrivate?: boolean }) {
   const posts = await getMergedPosts();
   const normalizedPath = normalizePath(path);
   const match =
     posts.find((post) => post.legacyPath === normalizedPath || post.aliasPaths.includes(normalizedPath)) ?? null;
-  if (!match || !isPostLive(match) || match.visibility === "private") {
+  if (!match || !isPostLive(match)) {
+    return null;
+  }
+  if (match.visibility === "private" && !options?.includePrivate) {
     return null;
   }
   return match;
@@ -1002,7 +1005,7 @@ export async function getProductAliasTarget(slug: string) {
     : overrides.find((candidate) => normalizeSlug(candidate.slug) === normalizedSlug);
 
   if (!source && !override) return null;
-  if (override?.visibility === "private") return null;
+  // 비공개 상품도 정식 주소로 넘긴다. 그쪽에서 404 대신 "비공개" 안내 화면을 보여준다.
   return normalizeSlug(override?.slug ?? source?.slug ?? normalizedSlug);
 }
 
@@ -1106,11 +1109,17 @@ export const getPageBySlug = cache(async (slug: string) => {
   return match && isPageLive(match) && match.visibility !== "private" ? match : null;
 });
 
-export const getPageByPath = cache(async (path: string) => {
+export const getPageByPath = cache(async (path: string, options?: { includePrivate?: boolean }) => {
   const pages = await getPages();
   const normalizedPath = normalizePath(path);
   const match = pages.find((page) => page.legacyPath === normalizedPath) ?? null;
-  return match && isPageLive(match) && match.visibility !== "private" ? match : null;
+  if (!match || !isPageLive(match)) {
+    return null;
+  }
+  if (match.visibility === "private" && !options?.includePrivate) {
+    return null;
+  }
+  return match;
 });
 
 const getSourceContentSeed = cache(async (): Promise<AdminPostInput[]> => {

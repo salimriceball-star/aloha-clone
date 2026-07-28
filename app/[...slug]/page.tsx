@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { CommentThread } from "@/components/comment-thread";
+import { PrivateContentNotice } from "@/components/private-content-notice";
 import { ProtectedPostGate } from "@/components/protected-post-gate";
 import { RichHtml } from "@/components/rich-html";
 import { StructuredData } from "@/components/structured-data";
@@ -26,7 +27,14 @@ export async function generateMetadata({
       robots: { index: false, follow: false, noarchive: true }
     };
   }
-  const post = await getPostByPath(path);
+  const post = await getPostByPath(path, { includePrivate: true });
+  if (post?.visibility === "private") {
+    return {
+      title: "비공개 글",
+      description: "비공개로 설정된 글입니다.",
+      robots: { index: false, follow: false, noarchive: true }
+    };
+  }
   if (post) {
     const canIndex = post.visibility === "public" && post.allowIndexing;
     const isPasswordProtected = post.visibility === "password";
@@ -53,7 +61,14 @@ export async function generateMetadata({
     };
   }
 
-  const page = await getPageByPath(path);
+  const page = await getPageByPath(path, { includePrivate: true });
+  if (page?.visibility === "private") {
+    return {
+      title: "비공개 페이지",
+      description: "비공개로 설정된 페이지입니다.",
+      robots: { index: false, follow: false, noarchive: true }
+    };
+  }
   if (page) {
     const canIndex = page.visibility === "public" && page.allowIndexing;
     const isPasswordProtected = page.visibility === "password";
@@ -126,7 +141,10 @@ export default async function CatchAllPage({
     );
   }
 
-  const post = await getPostByPath(path);
+  const post = await getPostByPath(path, { includePrivate: true });
+  if (post?.visibility === "private") {
+    return <PrivateContentNotice kind="post" />;
+  }
   if (post) {
     const comments = await getPostComments(post.id);
 
@@ -211,7 +229,10 @@ export default async function CatchAllPage({
     );
   }
 
-  const page = await getPageByPath(path);
+  const page = await getPageByPath(path, { includePrivate: true });
+  if (page?.visibility === "private") {
+    return <PrivateContentNotice kind="page" />;
+  }
   if (!page && slug.length === 1) {
     const productSlug = await getProductAliasTarget(slug[0]);
     if (productSlug) {

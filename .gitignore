@@ -16,3 +16,4 @@ coverage/
 data/assets/raw/
 artifacts/
 .vercel
+.env*
