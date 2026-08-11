@@ -1,56 +1,28 @@
-# Progress
+# progress — Vercel Fluid Active CPU 초과 경보 대응 (2026-08-11)
 
-현재 milestone: frontend design refresh from zero-context review
+## 배경
+- Vercel 무료 티어 Fluid Active CPU 4h 중 3h40m(92%) 소모. 8/10 하루에만 ~38분 스파이크(평소 5~10분/일). `aloha-clone`이 전체의 99%.
+- 한도 초과 시 프로젝트 자동 일시정지 → 프로덕션 중단 위험.
 
-- [x] 적용 전 원격 체크포인트 `checkpoint/pre-frontend-design-refresh-2026-07-22` (`8f607c55d251c2e9ce4a12bd0b2c5dbe8ed83f30`)
-- [x] 외부 리뷰 답변 전체 확인 및 적용 범위 감사
-- [x] 전역 토큰·헤더·본문·상품 카드·접근성 개선
-- [x] 관리자 툴바·편집 저장 UX·결제 폼 개선
-- [x] 반응형·typecheck·lint·build·runtime QA
-- [x] memory·commit·PR·Production 검증
+## 확인된 사실 (2026-08-11 조사)
+- [x] 로그 47분 샘플(100건): **404가 60%**, 대부분 `/wp-content/uploads/*.png` 옛 WP 이미지 경로 + `/product/97/feed` 같은 WP 피드 경로.
+- [x] 404 응답이 엣지에 캐시되지 않음 — 같은 URL 반복 요청도 매번 `x-vercel-cache: MISS`, 함수 재실행(~0.7s/건).
+- [x] `clone_posts` 오버라이드 8건에 `https://aloha-yt.xyz/wp-content/uploads/...` 자기 도메인 이미지 참조 총 ~17개 잔존 (예: `/2024/10/1`에 6개). 실제 서빙 HTML에 그대로 나감 → 방문자 브라우저가 404 함수 호출을 유발. `clone_products` 오버라이드는 깨끗(전부 Cloudinary).
+- [x] 원본 콘텐츠 경로는 `rewriteHtmlAssetUrls`로 Cloudinary 치환 정상 동작 (`/product/216` HTML 검증).
+- [x] cron은 1일 1회(supabase-health)로 무시 가능. middleware 없음.
+- [x] 8/10 스파이크는 외부 크롤러의 전수 크롤(옛 이미지·피드 URL 포함)로 추정 — Hobby 플랜 로그 보관 1시간이라 당일 로그는 소실, UA 미확보.
 
-이전 milestone: zero-context frontend design review packet
+## 코드 분석 결과 (memory/fluid-cpu-analysis-2026-08-11.md)
+- [x] `lib/site-data.ts:276-284`·`lib/asset-map.ts:32`가 React `cache()`(요청 스코프)만 사용 → **모든 함수 호출마다 ~10MB JSON 재파싱**
+- [x] `app/product/[slug]`·`app/[...slug]`에 `generateStaticParams` 없음 → 모든 첫 요청(봇 404 포함)이 풀 렌더
+- [x] 캐치올 404 경로가 최고 비용: JSON 5종 파싱 + Supabase 최대 3회 왕복 후에야 notFound()
+- [x] `app/sitemap.ts:16` force-dynamic → 크롤러가 때릴 때마다 JSON 5개 + 필수 DB 3쿼리
+- [x] 상품 페이지 중복 DB 쿼리(listPublicAdminProductOverrides 2회)
 
-- [x] 공개·관리자 화면 범위와 디자인 관련 코드 의존성 인벤토리 작성
-- [x] 제로 컨텍스트 리뷰 목표·제약·평가 질문 작성
-- [x] 관련 소스 원문과 데이터 샘플을 단일 문서로 concat
-- [x] 문서 생성 재현 스크립트와 누락/비밀값 검사
-- [x] memory·commit·push
-
-이전 milestone: unified post/page admin catalog
-
-- [x] 관리자 0건 원인 확인: 정적 WordPress export와 Supabase 관리자 테이블 분리
-- [x] `clone_posts`에 글/페이지 유형과 원본 ID 추적 스키마 추가
-- [x] 기존 글·페이지·홈을 수정값 비파괴 방식으로 관리자 DB에 자동 편입
-- [x] 관리자 목록을 상품 제외 글·페이지 통합 카탈로그로 전환
-- [x] 공개 홈·페이지·검색·sitemap 관리자 변경 반영 구현
-- [x] TypeScript·lint·Production형 build 검증
-- [ ] 배포 후 Supabase 자동 편입·관리자/공개 runtime QA
-- [ ] memory·commit·push
-
-- [x] metadata·sitemap·robots·redirect·구조화 데이터 감사
-- [x] canonical 운영 도메인 자동 해석과 관리자 상태 표시
-- [x] sitemap lastModified·WordPress sitemap redirect·robots 보강
-- [x] Organization·Article·Product JSON-LD와 private noindex 적용
-- [x] 주문 조회 key 강제·보안 응답 헤더 적용
-- [x] SEO 자동 감사 스크립트와 cutover 운영 문서
-- [x] RSS feed·Vercel build·Dependabot 운영 안전망
-- [x] 의존성 호환 보안 패치와 잔여 공지 위험 기록
-- [x] lint/build/local production QA
-- [x] memory·commit·push 마감
-- [x] 현재 apex·www·CAA·AAAA·MX·TXT·TLS 기준점 점검
-- [x] SSH와 TLS 역할 및 Vercel 자동 인증서 조건 문서화
-- [x] 환경변수→도메인 등록→DNS→TLS→SEO 순차 실행서
-- [x] 메일 DNS 보존·장애 진단·롤백·백업·모니터링 절차
-- [x] docs 검증·memory·commit·push
-- [x] Production env 중복 처리·비밀값 보존·재배포 스크립트
-- [x] Supabase 비공개 URL backup·checksum 스크립트
-- [x] baseline·www canary·production·diagnose 자동 판정
-- [x] 전체 15단계 Namecheap/Vercel/Search Console 복붙 런북
-- [x] lint·shell/docs QA·memory·commit·push
-- [x] Vercel 실제 www A-record 권고 대응과 canary A/CNAME 호환
-- [x] canary patch QA·memory·commit·push
-- [x] verify 전용 CNAME 우선·TLS 미발급 진단 반영
-- [x] verify-CNAME patch QA·memory·commit·push
-- [x] apex 최신 rank-1 이중 A 권고와 롤백 반영
-- [x] apex dual-A patch QA·memory·commit·push
+## 실행 (사용자 승인 완료: 코드 4종 + DB 정리 + 방화벽 안내, 검증 통과 시 main 푸시까지)
+- [x] **DB 정리 완료**: clone_posts 8행의 `aloha-yt.xyz/wp-content` 이미지 URL 17개 전부 Cloudinary로 UPDATE (한글 파일명 2개는 퍼센트 인코딩 폴백으로 해석). 치환 URL 전수 HEAD 200 확인. 잔존 bad ref 0.
+- [ ] 코드 최적화 4종 (sonnet5 서브에이전트 진행 중): ① JSON 모듈 싱글턴 캐시 ② sitemap ISR(3600) ③ WP 유물 경로 조기 404/410+엣지캐시 ④ 상품 페이지 중복 쿼리 제거
+- [ ] typecheck·lint·build 검증 → 커밋 → main 푸시(승인됨)
+- [ ] 배포 후 라이브 검증: /wp-content 410+캐시 HIT, sitemap ISR, /2024/10/1 이미지 정상
+- [ ] Vercel 방화벽 규칙 안내문 작성 (사용자 대시보드 작업)
+- [ ] serena 최종 기록
