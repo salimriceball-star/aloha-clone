@@ -267,21 +267,51 @@ function listPublicAdminPages() {
   return allowStaticAdminDbFallback() ? listAdminPages() : listAdminPagesRequired();
 }
 
-function listPublicAdminProductOverrides() {
+// 인자가 없는 함수라 React cache()의 참조 동일성 문제(옵션 객체 리터럴이 매번
+// 새 참조라 캐시가 안 맞는 문제)가 없다 — 같은 렌더 안에서 getProductBySlug,
+// getProducts, getProductAliasTarget이 각각 불러도 DB 왕복은 1회로 줄어든다.
+const listPublicAdminProductOverrides = cache(() => {
   return allowStaticAdminDbFallback()
     ? listAdminProductOverrides()
     : listAdminProductOverridesRequired();
+});
+
+// 정적 export JSON은 배포 시에만 바뀌는 읽기 전용 스냅샷이라, 요청 스코프인 React
+// cache()가 아니라 모듈 스코프 Map에 파싱 결과를 담아 warm 컨테이너 재사용 시
+// 재파싱을 없앤다. 읽기 실패 시에는 캐시 엔트리를 지워 다음 호출에서 재시도한다.
+const jsonSingletonCache = new Map<string, Promise<unknown>>();
+
+function readJson<T>(filename: string): Promise<T> {
+  const cached = jsonSingletonCache.get(filename);
+  if (cached) {
+    return cached as Promise<T>;
+  }
+  const promise = readFile(`${exportDir}/${filename}`, "utf8")
+    .then((raw) => JSON.parse(raw) as unknown)
+    .catch((error: unknown) => {
+      jsonSingletonCache.delete(filename);
+      throw error;
+    });
+  jsonSingletonCache.set(filename, promise);
+  return promise as Promise<T>;
 }
 
-const readJson = cache(async <T>(filename: string): Promise<T> => {
-  const raw = await readFile(`${exportDir}/${filename}`, "utf8");
-  return JSON.parse(raw) as T;
-});
+const adminJsonSingletonCache = new Map<string, Promise<unknown>>();
 
-const readAdminJson = cache(async <T>(filename: string): Promise<T> => {
-  const raw = await readFile(`${adminExportDir}/${filename}`, "utf8");
-  return JSON.parse(raw) as T;
-});
+function readAdminJson<T>(filename: string): Promise<T> {
+  const cached = adminJsonSingletonCache.get(filename);
+  if (cached) {
+    return cached as Promise<T>;
+  }
+  const promise = readFile(`${adminExportDir}/${filename}`, "utf8")
+    .then((raw) => JSON.parse(raw) as unknown)
+    .catch((error: unknown) => {
+      adminJsonSingletonCache.delete(filename);
+      throw error;
+    });
+  adminJsonSingletonCache.set(filename, promise);
+  return promise as Promise<T>;
+}
 
 function decodeHtmlEntities(value: string) {
   return value

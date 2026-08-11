@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { cache } from "react";
 
 import { assetManifestPath, assetUrlVariants, normalizeAssetUrl } from "@/lib/asset-utils";
 import { sourceHost, sourceUploadsAliasHosts } from "@/lib/project-config";
@@ -29,53 +28,78 @@ type AssetManifest = {
   }>;
 };
 
-const getAssetManifest = cache(async (): Promise<AssetManifest | null> => {
-  try {
-    const raw = await readFile(assetManifestPath, "utf8");
-    return JSON.parse(raw) as AssetManifest;
-  } catch {
-    return null;
-  }
-});
+// manifest.json은 빌드 시에만 바뀌는 정적 파일이라, 요청 스코프 React cache()
+// 대신 모듈 스코프 싱글턴으로 파싱한다. 파생 Map/Set(lookup, skipped)도 같은
+// 이유로 프로세스당 1회만 구축하도록 싱글턴화 — warm 컨테이너에서 콘텐츠마다
+// 반복되는 rewriteHtmlAssetUrls 호출이 매번 asset 목록을 순회/재구축하지 않는다.
+let assetManifestPromise: Promise<AssetManifest | null> | null = null;
 
-export const getAssetUrlLookup = cache(async () => {
-  const manifest = await getAssetManifest();
-  const lookup = new Map<string, string>();
-
-  for (const asset of manifest?.assets ?? []) {
-    for (const variant of assetUrlVariants(asset.originalUrl)) {
-      lookup.set(variant, asset.cloudinaryUrl);
-    }
-    for (const variant of assetUrlVariants(asset.normalizedUrl)) {
-      lookup.set(variant, asset.cloudinaryUrl);
-    }
-    for (const variantUrl of asset.variantUrls ?? []) {
-      for (const variant of assetUrlVariants(variantUrl)) {
-        lookup.set(variant, asset.cloudinaryUrl);
+function getAssetManifest(): Promise<AssetManifest | null> {
+  if (!assetManifestPromise) {
+    assetManifestPromise = (async (): Promise<AssetManifest | null> => {
+      try {
+        const raw = await readFile(assetManifestPath, "utf8");
+        return JSON.parse(raw) as AssetManifest;
+      } catch {
+        return null;
       }
-    }
+    })();
   }
+  return assetManifestPromise;
+}
 
-  return lookup;
-});
+let assetUrlLookupPromise: Promise<Map<string, string>> | null = null;
 
-const getSkippedAssetUrls = cache(async () => {
-  const manifest = await getAssetManifest();
-  const skipped = new Set<string>();
+export function getAssetUrlLookup(): Promise<Map<string, string>> {
+  if (!assetUrlLookupPromise) {
+    assetUrlLookupPromise = (async () => {
+      const manifest = await getAssetManifest();
+      const lookup = new Map<string, string>();
 
-  for (const asset of manifest?.skipped ?? []) {
-    for (const url of [asset.normalizedUrl, ...(asset.variantUrls ?? [])]) {
-      if (url.includes("&quot;")) {
-        continue;
+      for (const asset of manifest?.assets ?? []) {
+        for (const variant of assetUrlVariants(asset.originalUrl)) {
+          lookup.set(variant, asset.cloudinaryUrl);
+        }
+        for (const variant of assetUrlVariants(asset.normalizedUrl)) {
+          lookup.set(variant, asset.cloudinaryUrl);
+        }
+        for (const variantUrl of asset.variantUrls ?? []) {
+          for (const variant of assetUrlVariants(variantUrl)) {
+            lookup.set(variant, asset.cloudinaryUrl);
+          }
+        }
       }
-      for (const variant of assetUrlVariants(url)) {
-        skipped.add(variant);
-      }
-    }
+
+      return lookup;
+    })();
   }
+  return assetUrlLookupPromise;
+}
 
-  return skipped;
-});
+let skippedAssetUrlsPromise: Promise<Set<string>> | null = null;
+
+function getSkippedAssetUrls(): Promise<Set<string>> {
+  if (!skippedAssetUrlsPromise) {
+    skippedAssetUrlsPromise = (async () => {
+      const manifest = await getAssetManifest();
+      const skipped = new Set<string>();
+
+      for (const asset of manifest?.skipped ?? []) {
+        for (const url of [asset.normalizedUrl, ...(asset.variantUrls ?? [])]) {
+          if (url.includes("&quot;")) {
+            continue;
+          }
+          for (const variant of assetUrlVariants(url)) {
+            skipped.add(variant);
+          }
+        }
+      }
+
+      return skipped;
+    })();
+  }
+  return skippedAssetUrlsPromise;
+}
 
 export async function resolveAssetUrl(url: string | null | undefined) {
   if (!url) {

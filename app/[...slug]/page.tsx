@@ -14,12 +14,38 @@ import { getSiteUrl } from "@/lib/site-url";
 
 export const revalidate = 60;
 
+// 봇/취약점 스캐너가 즐겨 찌르는 WP 유물 경로(wp-content, wp-admin, *.php, /feed 등).
+// 실제 콘텐츠(글 permalink, 페이지, /227 같은 상품 별칭)는 이 패턴과 절대 겹치지
+// 않으므로, 데이터 레이어(JSON 파싱 + DB 조회)를 타기 전에 즉시 404 처리한다.
+const knownBotArtifactPrefixes = new Set(["wp-content", "wp-includes", "wp-admin", "wp-json"]);
+
+function isKnownBotArtifactPath(slug: string[]): boolean {
+  if (slug.length === 0) {
+    return false;
+  }
+  const first = slug[0]?.toLowerCase() ?? "";
+  if (knownBotArtifactPrefixes.has(first)) {
+    return true;
+  }
+  const last = slug[slug.length - 1]?.toLowerCase() ?? "";
+  if (last.endsWith(".php")) {
+    return true;
+  }
+  if (last === "feed") {
+    return true;
+  }
+  return false;
+}
+
 export async function generateMetadata({
   params
 }: {
   params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  if (isKnownBotArtifactPath(slug)) {
+    notFound();
+  }
   const path = `/${slug.join("/")}`;
   if (path === "/my-account" || path.startsWith("/my-account/")) {
     return {
@@ -126,6 +152,9 @@ export default async function CatchAllPage({
   params: Promise<{ slug: string[] }>;
 }) {
   const { slug } = await params;
+  if (isKnownBotArtifactPath(slug)) {
+    notFound();
+  }
   const path = `/${slug.join("/")}`;
 
   if (path === "/my-account/lost-password") {
