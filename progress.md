@@ -21,8 +21,12 @@
 
 ## 실행 (사용자 승인 완료: 코드 4종 + DB 정리 + 방화벽 안내, 검증 통과 시 main 푸시까지)
 - [x] **DB 정리 완료**: clone_posts 8행의 `aloha-yt.xyz/wp-content` 이미지 URL 17개 전부 Cloudinary로 UPDATE (한글 파일명 2개는 퍼센트 인코딩 폴백으로 해석). 치환 URL 전수 HEAD 200 확인. 잔존 bad ref 0.
-- [ ] 코드 최적화 4종 (sonnet5 서브에이전트 진행 중): ① JSON 모듈 싱글턴 캐시 ② sitemap ISR(3600) ③ WP 유물 경로 조기 404/410+엣지캐시 ④ 상품 페이지 중복 쿼리 제거
-- [ ] typecheck·lint·build 검증 → 커밋 → main 푸시(승인됨)
-- [ ] 배포 후 라이브 검증: /wp-content 410+캐시 HIT, sitemap ISR, /2024/10/1 이미지 정상
-- [ ] Vercel 방화벽 규칙 안내문 작성 (사용자 대시보드 작업)
-- [ ] serena 최종 기록
+- [x] 코드 최적화 4종: ① JSON 모듈 싱글턴 캐시 ② sitemap ISR(3600) ③ WP 유물 경로 조기 404/410+엣지캐시 ④ 상품 페이지 중복 쿼리 제거
+- [x] typecheck·lint·build 통과 → 커밋 b321823·864f6c0 → main 푸시 → 배포 gdta2jdca
+- [x] 라이브 검증: /wp-content·xmlrpc.php 410 + 2회차 엣지 HIT, /wp-login.php·/product/97/feed 조기 404, sitemap PRERENDER→HIT, /2024/10/1 이미지 Cloudinary 정상, 주요 페이지 200
+- [x] 방화벽 안내문: docs/vercel-firewall-guide.md
+- [x] serena 최종 기록: memory/serena/fluid-cpu-mitigation__2026-08-11-2210__passed.md
+
+## 사용자 작업 (미완)
+- [ ] Vercel 대시보드 Firewall 커스텀 규칙 3개 설정 (docs/vercel-firewall-guide.md) — 봇 함수 호출 0화
+- [ ] 청구 주기 리셋 전까지 usage 그래프 모니터 (잔여 한도 ~20분)
