@@ -30,3 +30,4 @@
 ## 사용자 작업 (미완)
 - [ ] Vercel 대시보드 Firewall 커스텀 규칙 3개 설정 (docs/vercel-firewall-guide.md) — 봇 함수 호출 0화
 - [ ] 청구 주기 리셋 전까지 usage 그래프 모니터 (잔여 한도 ~20분)
+- [x] Node 20 지원종료 메일 대응: 빌드는 engines 24.x로 이미 안전, 대시보드 설정만 API로 24.x 정렬 (2026-08-15, serena node20-deprecation-check)
