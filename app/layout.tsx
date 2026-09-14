@@ -44,6 +44,10 @@ export async function generateMetadata(): Promise<Metadata> {
     verification: process.env.GOOGLE_SITE_VERIFICATION
       ? { google: process.env.GOOGLE_SITE_VERIFICATION }
       : undefined,
+    other: {
+      // Meta Business Manager domain verification (required for conversion-optimized ads).
+      "facebook-domain-verification": "we96mjyvznaa6gi3dpmqilctk4uj1t"
+    },
     formatDetection: {
       email: false,
       address: false,
